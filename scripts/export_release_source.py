@@ -14,7 +14,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parent.parent
 TOP_LEVEL = {"README.md", "LICENSE", ".gitignore", "CHANGELOG.md"}
-DOCS = {"GUIDE.md", "PRIVACY.md", "VALIDATION.md", "RELEASE.md", "STORE_LISTING.md"}
+DOCS = {"GUIDE.md", "PRIVACY.md", "VALIDATION.md", "RELEASE.md", "STORE_LISTING.md", "index.html", "privacy.html"}
 VALIDATION = {
     ".gitignore", "README.md", "compare.py", "gridalign.py", "split.py",
     "synthesize.py", "generate_references.py", "sample_public.py",
