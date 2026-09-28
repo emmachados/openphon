@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>openphon privacy statement</title>
+<style>body{font:18px/1.6 system-ui,sans-serif;max-width:740px;margin:64px auto;padding:0 24px;color:#20242a;background:#fff}h1{font-size:32px;line-height:1.2}h2{font-size:23px;margin-top:2em}a{color:#17568b}</style></head>
+<body><main><p><a href="https://github.com/emmachados/openphon">openphon source and support</a></p>
+<h1>Privacy statement</h1>
+<p>openphon records, analyzes and annotates speech on the device. The application has no backend, account system, telemetry, advertising or cloud SDK. Export is initiated by the user through a system share sheet or save dialog. The Android release manifest requests microphone access; development builds also request network access for Flutter tooling.</p>
+<h2>Library storage and backups</h2>
+<p>Recordings, annotations, preferences and the database are stored in the application-support directory. Android disables automatic backup and excludes application data from both cloud backup and device transfer in its backup rules. On iOS, startup creates the Application Support and Documents directories, sets their backup-exclusion attributes and checks that the attributes were applied before opening the library. A failure shows a retry screen. Documents is included in this preparation because older libraries may be migrated from that location.</p>
+<p>These settings were inspected in a signed Android release package and verified on an iOS simulator. A physical-device backup/restore or transfer was not performed in this verification. On desktop, user-configured backup software can copy application files.</p>
+<p>Exported copies are outside the library&#x27;s backup rules. Selecting a cloud location or another application in the system picker/share sheet can transfer those copies according to that provider&#x27;s settings. Deleting a recording in openphon does not delete copies previously exported elsewhere.</p>
+<p>Removing the app and its data removes the local library. iOS offloading, which retains app data, is different from deleting the app. Use Back up library… to export recordings, TextGrids and a manifest.csv index before removing the application or moving to another device. System backup is not a substitute for this export.</p>
+<h2>Validation data</h2>
+<p>The reproducible release check uses synthesized signals and public speech selected from CIEMPIESS Light and Spanish Common Voice. It verifies the committed public-audio hashes and does not read the separate private participant corpus used in earlier research. Private participant audio and its manifest are excluded from the source repository. See the validation report in the source repository for the tested material and procedure.</p>
+<p>Updated 28 September 2026.</p></main></body></html>

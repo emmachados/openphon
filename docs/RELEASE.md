@@ -28,7 +28,9 @@ B3:04:5A:5A:BA:94:1B:75:46:33:A2:8F:89:60:F3:90:83:59:B7:99:46:34:E9:95:98:67:7A
 The APK targets API 36, requires API 24, has no Internet permission and
 disables backups. ZIP alignment passes `zipalign -c -P 16 -v 4`; all ARM64
 and x86_64 native LOAD segments have alignment of at least 16 KB. The nine native integration tests also pass on the 16 KB emulator.
-Production-mode bridge verification is in progress.
+The production app also starts on that emulator; its process remained
+alive and the checked startup logs contained no crash. The release-mode
+startup check does not replace the debug-mode native integration suite.
 
 The iOS release application compiles and a development-signed archive
 builds. Its privacy manifest is present. App Store export currently fails
@@ -82,5 +84,6 @@ transcripts, audio, local inputs and the original Git history. Inspect
 Existing working files in the research repository are preserved.
 
 CI recompiles unsigned production artifacts and regenerates validation
-evidence. A successful remote run must be checked separately from these
-local results.
+evidence. The first remote runs are being checked at
+https://github.com/emmachados/openphon/actions. Local results alone do not
+establish a successful remote run.
