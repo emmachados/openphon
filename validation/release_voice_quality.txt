@@ -1,0 +1,19 @@
+file                     jit_in shim_in  HNR op  HNR pr   jit op   jit pr  shim op  shim pr   F0 op   F0 pr
+vq_clean_150              0.000   0.000    54.9   116.0  0.00002  0.00002  0.00010  0.00011  150.00  150.00  (HNR exempt)
+vq_jit005_150             0.005   0.000    22.3    22.4  0.00444  0.00412  0.00924  0.01212  150.01  150.04
+vq_jit01_150              0.010   0.000    16.6    16.6  0.00865  0.00803  0.01643  0.02254  150.09  150.07
+vq_shim05_150             0.000   0.050    35.1    27.9  0.00035  0.00030  0.05539  0.05706  150.00  150.00
+vq_shim10_150             0.000   0.100    26.1    22.2  0.00069  0.00060  0.11100  0.11261  150.00  150.00
+vq_jit01_shim05_120       0.010   0.050    16.0    16.1  0.00798  0.00757  0.05779  0.05909  119.98  119.97
+vq_clean_220              0.000   0.000    37.9    36.5  0.00180  0.00220  0.01587  0.00575  220.09  219.95  (HNR exempt)
+vq_jit01_220              0.010   0.000    19.1    19.0  0.01147  0.00674  0.07615  0.07652  220.18  220.19
+
+mean |dHNR| = 1.90 dB (over 6 of 8 files; ['vq_clean_150', 'vq_clean_220'] exempt by condition)   mean |djitter| = 0.083%   mean |dshimmer| = 0.301%   mean |dmedianF0| = 0.027 Hz
+
+parity gates:
+  HNR mean abs deviation (dB)            1.89892  (gate < 2.0)  PASS
+  jitter local mean abs deviation        0.00083  (gate < 0.002)  PASS
+  shimmer local mean abs deviation       0.00301  (gate < 0.01)  PASS
+  median F0 mean abs deviation (Hz)      0.02747  (gate < 2.0)  PASS
+
+RESULT: PASS

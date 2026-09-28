@@ -1,0 +1,26 @@
+{
+  "sources": [
+    {
+      "source": "ciempiess_hf",
+      "dataset": "ciempiess/ciempiess_light",
+      "corpus_version": "3d6afb2b3b8dd00ad8f5b1288fe4c18f5882faaa",
+      "selection_from": null,
+      "downloaded": "2026-08-03",
+      "clips": 261
+    },
+    {
+      "source": "common_voice_hf",
+      "dataset": "fsicoli/common_voice_17_0",
+      "corpus_version": "hf:fsicoli/common_voice_17_0@8262c16bf297c87a9cd88c51997c4758ed7a8ba2 (es test split)",
+      "selection_from": "test.tsv",
+      "downloaded": "2026-08-03",
+      "clips": 99
+    }
+  ],
+  "selection": "deterministic blake2b rank over speaker and clip id, speakers stratified by gender",
+  "verification": "sha256 per clip in manifest.csv; sample_public.py --from-manifest re-fetches and checks",
+  "speakers": 120,
+  "recordings": 360,
+  "total_audio_s": 1751.5,
+  "target_rate_hz": 16000
+}

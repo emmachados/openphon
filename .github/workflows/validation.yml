@@ -1,0 +1,183 @@
+# Praat agreement checks. Public voicing retains its documented report-only
+# exception; a green workflow does not mean every numerical target was met.
+
+name: Validation
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # Preserve Python failures in commands whose output is also saved by tee.
+    shell: bash
+
+on:
+  push:
+    paths:
+      - "core/**"
+      - "cli/**"
+      - "validation/**"
+      - ".github/workflows/validation.yml"
+  pull_request:
+    paths:
+      - "core/**"
+      - "cli/**"
+      - "validation/**"
+      - ".github/workflows/validation.yml"
+  workflow_dispatch:
+
+env:
+  # Pinned: the reference tracks must not depend on which Praat the runner
+  # happens to resolve. parselmouth 0.4.7 embeds Praat 6.1.38, the version
+  # docs/VALIDATION.md reports against.
+  PARSELMOUTH: praat-parselmouth==0.4.7
+
+jobs:
+  synthetic:
+    name: Synthetic, voice-quality and spectral gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            core/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('core/Cargo.lock', 'core/Cargo.toml') }}
+          restore-keys: cargo-${{ runner.os }}-
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install the reference stack
+        run: pip install "$PARSELMOUTH" numpy
+
+      - name: Core unit tests
+        run: cargo test --release --manifest-path core/Cargo.toml
+
+      - name: CLI unit tests
+        run: cargo test --locked --manifest-path cli/Cargo.toml
+
+      - name: Synthesise the benchmark tiers
+        working-directory: validation
+        run: python synthesize.py
+
+      - name: Praat reference tracks
+        working-directory: validation
+        run: python generate_references.py
+
+      - name: Track gates (F0, formants)
+        working-directory: validation
+        run: python compare.py --json compare_report.json
+
+      - name: Build native validation tools
+        run: cargo build --locked --release --manifest-path core/Cargo.toml --example voice_report --example spectral_moments
+
+      - name: Voice-quality gates (HNR, jitter, shimmer)
+        working-directory: validation
+        run: python voice_quality_check.py | tee voice_quality_report.txt
+
+      - name: Spectral-moment gates
+        working-directory: validation
+        run: python spectral_check.py | tee spectral_report.txt
+
+      # The formant-error grid is synthesised, so its ground truth travels
+      # with it and the whole tier is reproducible here. It is reported
+      # rather than gated: it measures error against known poles, which is
+      # a property of LPC formant analysis at these settings rather than of
+      # this implementation, and a threshold on it would be arbitrary.
+      - name: Formant-error grid against known poles
+        working-directory: validation
+        run: |
+          python synthesize.py --grid
+          python formant_grid.py --out formant_grid.json | tee formant_grid.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: synthetic-report
+          path: |
+            validation/compare_report.json
+            validation/formant_grid.json
+            validation/formant_grid.txt
+            validation/voice_quality_report.txt
+            validation/spectral_report.txt
+
+  public:
+    name: Gated real-speech tier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            core/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('core/Cargo.lock', 'core/Cargo.toml') }}
+          restore-keys: cargo-${{ runner.os }}-
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install the reference stack
+        run: |
+          pip install "$PARSELMOUTH" numpy
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      # The Common Voice half arrives as a 750 MB tarball rather than as
+      # clip-addressable rows, because the dataset is too large for the
+      # hub's rows API. Caching it keeps a re-run from re-fetching it; the
+      # key is the pinned revision, so a corpus change misses the cache
+      # rather than being served a stale copy.
+      - uses: actions/cache@v4
+        with:
+          path: validation/.corpus_cache
+          key: cv17-es-test-8262c16b
+
+      - name: Rebuild the gated tier from its manifest, verifying every hash
+        working-directory: validation
+        run: python sample_public.py --from-manifest wavs/public/manifest.csv
+
+      - name: Test release evidence integrity checks
+        working-directory: validation
+        run: python -m unittest test_release_check
+
+      - name: Regenerate release evidence from verified audio and fresh references
+        working-directory: validation
+        run: python release_check.py --out public_report.json | tee public_run.txt
+
+      - name: Publish the gated-tier numbers to the job summary
+        if: always()
+        working-directory: validation
+        run: |
+          {
+            echo "## Gated real-speech tier (evaluation half)"
+            echo
+            echo "Rebuilt from the committed manifest; every clip hash verified."
+            echo
+            echo '```'
+            sed -n '/aggregate (public/,/^$/p' public_run.txt || true
+            echo '```'
+            echo
+            echo "Formant and F0 gates block. The voicing gate is reported"
+            echo "only. Its target remains above 90%; inspect the report for failures."
+            echo "See docs/VALIDATION.md for the scope of these measurements."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-report
+          path: |
+            validation/public_report.json
+            validation/public_run.txt

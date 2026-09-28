@@ -1,0 +1,15 @@
+﻿[package]
+name = "openphon_core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rustfft = "6"
+
+[dev-dependencies]
+proptest = "1"
+
+# The naive YIN difference function is O(tau_max^2) per frame; unoptimized
+# test builds would take tens of seconds.
+[profile.test]
+opt-level = 2

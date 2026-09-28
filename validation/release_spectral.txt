@@ -1,0 +1,15 @@
+file             CoG op   CoG pr    SD op    SD pr  skew op  skew pr  kurt op  kurt pr
+sp_white        11119.5  11119.5   6331.0   6331.0   -0.023   -0.023   -1.193   -1.193
+sp_s_like        8618.7   8618.7   2944.1   2944.1    2.217    2.217    5.692    5.692
+sp_sh_like       5265.7   5265.7   3156.9   3156.9    2.904    2.904    9.197    9.197
+sp_band15        1398.2   1398.2    601.3    601.3    5.753    5.753  124.213  124.213
+sp_sloped           2.9      2.9     89.7     89.7  142.285  142.28525364.80225364.802
+sp_twotone       3999.9   3999.9   2000.5   2000.5    0.001    0.001   -1.993   -1.993
+
+parity gates:
+  CoG mean relative deviation          0.00000  (gate < 0.01)  PASS
+  SD mean relative deviation           0.00000  (gate < 0.02)  PASS
+  skewness mean abs deviation          0.00000  (gate < 0.05)  PASS
+  kurtosis mean relative deviation     0.00000  (gate < 0.05)  PASS
+
+RESULT: PASS
