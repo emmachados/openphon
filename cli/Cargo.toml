@@ -1,0 +1,17 @@
+[package]
+name = "openphon-cli"
+version = "0.1.0"
+edition = "2024"
+description = "Command-line companion to openphon: the app's validated DSP core, scriptable from a shell"
+license = "Apache-2.0"
+
+[[bin]]
+name = "openphon"
+path = "src/main.rs"
+
+[dependencies]
+openphon_core = { path = "../core" }
+
+# Analysis in debug builds is 10-20x slower; a CLI is always used "for real".
+[profile.dev]
+opt-level = 2

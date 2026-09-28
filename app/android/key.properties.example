@@ -1,0 +1,7 @@
+# Copy to a private file and set OPENPHON_ANDROID_KEY_PROPERTIES to its path.
+# Relative storeFile paths resolve beside this properties file.
+# Keep the existing release key: replacing it prevents updates to existing installs.
+storeFile=/absolute/path/to/openphon-release.jks
+storePassword=REPLACE_LOCALLY
+keyAlias=REPLACE_LOCALLY
+keyPassword=REPLACE_LOCALLY

@@ -1,0 +1,21 @@
+# Rust (crate-level .gitignore files cover core/target and app/rust/target;
+# Cargo.lock is committed: this is an application, builds must be reproducible)
+core/target/
+cli/target/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Local signing material supplied for release preparation.
+/openphon-release-keys.zip
+**/*.jks
+**/*.keystore
+**/*.p12
+**/*.mobileprovision
+/release-artifacts/
+
+# Supplementary deposit for the JASA paper: a build product of
+# paper-jasa-methodology/build_osf.py, 73 MB of copies of files already in
+# this repo. Rebuild it, do not commit it.
+Machado_supplementary_materials_jasa/
