@@ -47,9 +47,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: flutter pub get --enforce-lockfile
       - name: Compile the production package without private signing material
-        run: flutter build apk --release --no-pub
+        # Flutter 3.47 skips regenerating the Android plugin registrant with
+        # --no-pub, leaving test-only plugins from the preceding pub get.
+        run: flutter build apk --release
         env:
           OPENPHON_UNSIGNED_RELEASE: "1"
+      - run: git diff --exit-code -- pubspec.lock
       - uses: actions/upload-artifact@v4
         with:
           name: android-unsigned-release-apk

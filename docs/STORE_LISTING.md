@@ -32,10 +32,9 @@ Version: `0.1.0`. Build number: `1`.
 Language: English.
 Suggested category: Education.
 
-Support: the public GitHub repository's Issues page.
-Privacy policy: [PRIVACY.md](PRIVACY.md), to be supplied as a publicly
-accessible URL in each store's listing.
-Source and validation: the public GitHub repository.
+Support: https://github.com/emmachados/openphon/issues
+Privacy policy: https://emmamachado.com/openphon/privacy.html
+Source and validation: https://github.com/emmachados/openphon
 
 For app review, no login or demonstration account is needed. Import a WAV
 file or grant microphone permission and record audio. Select a recording
@@ -53,5 +52,5 @@ user-selected files, no tracking and no developer data collection.
 
 Complete age-rating, distribution territories and any required developer
 contact fields in the account owner's store console. Do not publish a
-personal contact address copied from signing credentials. Screenshots and
-the final store privacy URL remain to be supplied before submission.
+personal contact address copied from signing credentials. Screenshots
+remain to be supplied before submission.
