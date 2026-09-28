@@ -70,6 +70,11 @@ flutter build apk --release
 ```
 
 The fallback properties location is the ignored `android/key.properties`.
+With Flutter 3.47, omit `--no-pub` from Android release builds. That flag
+skips regenerating the plugin registrant and can retain a test-only plugin
+reference after `flutter pub get` or a debug build. CI first enforces the
+lockfile and checks that the release build leaves it unchanged.
+
 Release tasks fail when signing material is absent or incomplete. There is
 no debug-key fallback. `OPENPHON_UNSIGNED_RELEASE=1` explicitly permits an
 unsigned build for CI packaging checks. Verify a signed APK with Android
