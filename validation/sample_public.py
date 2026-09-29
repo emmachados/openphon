@@ -16,9 +16,9 @@ ciempiess_hf   CIEMPIESS Light, Mexican Spanish radio speech, CC BY-SA 4.0,
                account, ungated). Spontaneous broadcast speech at 16 kHz.
                Extends the tier beyond the Peninsular variety of the private
                corpora, which is the geographic limitation Section 5.2
-               acknowledges. This is the source continuous integration uses:
-               it needs no local corpus and no credential, and a run fetches
-               a few megabytes rather than a release tarball.
+               acknowledges. Selection can use the rows service. Manifest
+               reconstruction reads pinned Parquet shards (about 1.1 GB,
+               cached) to avoid the dynamic filter service.
 
 common_voice_hf
                The same Common Voice Spanish material, taken from the
@@ -48,22 +48,25 @@ Determinism
 -----------
 
 Selection is a fixed BLAKE2b rank over speaker and clip identifiers, never a
-random seed, so two people pointing this at the same corpus release obtain
-byte-identical tiers. Speakers are ranked *within gender* where the corpus
+random seed, so selection from the same corpus release yields the same
+clip identifiers. Decoding is a separate source of reproducibility differences. Speakers are ranked *within gender* where the corpus
 reports it, because both corpora are heavily male-skewed and an unstratified
 rank would inherit the skew.
 
 Every selected clip's SHA-256 goes into the manifest. `--from-manifest`
-re-fetches exactly that list and verifies each hash, which is what lets CI
-assert it is analysing the same audio the committed numbers describe rather
-than whatever the corpus contains today.
+re-fetches the selected upstream sources and verifies decoded PCM identities.
+Decoder output can differ across platforms, even at the same FFmpeg version.
+The release benchmark therefore uses fetch_public.py to retrieve preserved
+WAV bytes and verify the original file hashes. This script remains available
+for source reconstruction and selecting new tiers; mismatches are errors.
 
 Usage
 -----
     python sample_public.py --source ciempiess_hf --speakers 20 --per-speaker 12
     python sample_public.py --source common_voice --root /path/to/cv-corpus-es \\
         --tsv test.tsv --speakers 20 --per-speaker 3 --append
-    python sample_public.py --from-manifest wavs/public/manifest.csv   # CI
+    python sample_public.py --from-manifest wavs/public/manifest.csv   # upstream audit
+    python fetch_public.py   # exact release benchmark used in CI
 
 Then, as for any tier:
     python generate_references.py
@@ -87,6 +90,8 @@ import wave
 from collections import defaultdict
 from pathlib import Path
 
+from audio_identity import matches_manifest, pcm_sha256
+
 HERE = Path(__file__).parent
 DEST = HERE / "wavs" / "public"
 
@@ -104,6 +109,14 @@ HF_FILES = "https://huggingface.co/datasets"
 CIEMPIESS_DATASET = "ciempiess/ciempiess_light"
 CIEMPIESS_CONFIG = "ciempiess_light"
 CIEMPIESS_SPLIT = "train"
+CIEMPIESS_REVISION = "3d6afb2b3b8dd00ad8f5b1288fe4c18f5882faaa"
+# Git LFS object hashes published by the corpus author at the pinned revision.
+CIEMPIESS_SHARDS = [
+    "bb6bbdd1755bba0994016d608feb82e25f3f03659754f771aed75bad529d45f7",
+    "996b4e3a8fdd64c04c51b39336bb0e32fa884f3cbc264b4d3e632446e97ceeb5",
+    "722097e1eb9fa1b3699a1f15bea27cd7f56a3e5730bacd0c33a0426a26c25677",
+    "e72cc33b7f45d87aa252c6bd207a63e3769373ba05e80983833c5eb15c460f53",
+]
 
 # Common Voice over the hub. The dataset is too large for the rows API to
 # serve clip by clip (`/splits` answers 501), so the split is taken as the
@@ -118,7 +131,7 @@ CACHE = HERE / ".corpus_cache"
 
 MANIFEST_FIELDS = [
     "stem", "speaker", "gender", "corpus", "corpus_version", "licence",
-    "source_id", "sample_rate", "duration_s", "sha256", "transcript",
+    "source_id", "sample_rate", "duration_s", "sha256", "transcript", "pcm_sha256",
 ]
 
 # Both corpora ship an orthographic transcript with every clip, which is
@@ -183,10 +196,10 @@ def _with_retry(fn, what):
             if exc.code not in _RETRY_STATUS or attempt == _RETRIES:
                 raise
             reason = f"HTTP {exc.code}"
-        except urllib.error.URLError as exc:
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
             if attempt == _RETRIES:
                 raise
-            reason = f"{type(exc).__name__}: {exc.reason}"
+            reason = f"{type(exc).__name__}: {getattr(exc, 'reason', str(exc))}"
         print(f"    {what}: {reason}, retrying in {delay:.0f}s "
               f"({attempt}/{_RETRIES - 1})", file=sys.stderr, flush=True)
         time.sleep(delay)
@@ -519,6 +532,7 @@ def materialise(picks, dest, rate, work):
             "sample_rate": rate,
             "duration_s": round(wav_duration(out), 2),
             "sha256": sha256(out),
+            "pcm_sha256": pcm_sha256(out),
             "transcript": p.get("transcript", ""),
         })
         if n % 25 == 0 or n == len(picks):
@@ -526,14 +540,50 @@ def materialise(picks, dest, rate, work):
     return rows
 
 
-def from_manifest(args, dest, work):
-    """Re-fetch exactly the committed clip list and verify every hash.
+def _ciempiess_manifest_audio(wanted, dest, work):
+    """Read pinned author-published shards without the dynamic filter API."""
+    import pyarrow.parquet as parquet
 
-    This is the CI path, and the reader's path. It is the difference between
-    a tier that is reproducible in principle and one that is checked on
-    every commit: if the upstream corpus is re-uploaded or a clip changes,
-    the hashes stop matching and the build fails rather than quietly
-    reporting numbers about different audio.
+    if any(row["corpus_version"] != CIEMPIESS_REVISION for row in wanted):
+        raise ValueError("CIEMPIESS manifest revision differs from the pinned shards")
+    pending = {row["source_id"]: row for row in wanted}
+    if len(pending) != len(wanted):
+        raise ValueError("Duplicate CIEMPIESS source IDs")
+    CACHE.mkdir(parents=True, exist_ok=True)
+    ok, bad = 0, []
+    for index, expected_hash in enumerate(CIEMPIESS_SHARDS):
+        name = f"train-{index:05d}-of-00004.parquet"
+        cached = CACHE / f"ciempiess_light_{CIEMPIESS_REVISION[:8]}_{name}"
+        if not cached.is_file() or sha256(cached) != expected_hash:
+            partial = cached.with_suffix(".partial")
+            print(f"  fetching pinned CIEMPIESS shard {index + 1}/4", flush=True)
+            _download(f"{HF_FILES}/{CIEMPIESS_DATASET}/resolve/{CIEMPIESS_REVISION}/ciempiess_light/{name}", partial)
+            if sha256(partial) != expected_hash:
+                raise ValueError(f"CIEMPIESS source shard hash mismatch: {name}")
+            partial.replace(cached)
+        for batch in parquet.ParquetFile(cached).iter_batches(batch_size=32, columns=["audio_id", "audio"]):
+            for source in batch.to_pylist():
+                row = pending.pop(source["audio_id"], None)
+                if row is None:
+                    continue
+                temporary = work / f"{row['stem']}.src"
+                temporary.write_bytes(source["audio"]["bytes"])
+                output = dest / f"{row['stem']}.wav"
+                to_wav(temporary, output, int(row["sample_rate"]))
+                temporary.unlink()
+                if matches_manifest(output, row):
+                    ok += 1
+                else:
+                    bad.append((row["stem"], row.get("pcm_sha256") or row["sha256"], pcm_sha256(output)))
+        print(f"  CIEMPIESS shard {index + 1}/4: {ok} selected clips verified", flush=True)
+    return ok, bad, list(pending)
+
+
+def from_manifest(args, dest, work):
+    """Re-decode pinned upstream sources and verify committed PCM identities.
+
+    Decoder differences can fail this audit without an upstream source change.
+    Use fetch_public.py for the preserved release benchmark used in CI.
     """
     with open(args.from_manifest, encoding="utf-8", newline="") as f:
         want = list(csv.DictReader(f))
@@ -549,29 +599,7 @@ def from_manifest(args, dest, work):
               f"({sorted({r['corpus'] for r in skipped})}); they need a local "
               f"corpus and are skipped")
 
-    by_speaker = defaultdict(list)
-    for r in fetchable:
-        by_speaker[r["speaker"]].append(r)
-
-    ok, bad, missing = 0, [], []
-    for spk, wanted in sorted(by_speaker.items()):
-        rows = {r["audio_id"]: r for r in _ciempiess_rows_for(spk, 100)}
-        for w in wanted:
-            row = rows.get(w["source_id"])
-            if row is None:
-                missing.append(w["source_id"])
-                continue
-            out = dest / f"{w['stem']}.wav"
-            tmp = work / f"{w['stem']}.src"
-            _download(row["audio"][0]["src"], tmp)
-            to_wav(tmp, out, int(w["sample_rate"]))
-            tmp.unlink(missing_ok=True)
-            got = sha256(out)
-            if got != w["sha256"]:
-                bad.append((w["stem"], w["sha256"], got))
-            else:
-                ok += 1
-        print(f"  {spk}: {len(wanted)} clips", flush=True)
+    ok, bad, missing = _ciempiess_manifest_audio(fetchable, dest, work) if fetchable else (0, [], [])
 
     if cv:
         # The Common Voice half comes out of the pinned tarball rather than
@@ -588,9 +616,8 @@ def from_manifest(args, dest, work):
                 continue
             to_wav(tmp, out, int(w["sample_rate"]))
             tmp.unlink(missing_ok=True)
-            got = sha256(out)
-            if got != w["sha256"]:
-                bad.append((w["stem"], w["sha256"], got))
+            if not matches_manifest(out, w):
+                bad.append((w["stem"], w.get("pcm_sha256") or w["sha256"], pcm_sha256(out)))
             else:
                 ok += 1
             if n % 25 == 0 or n == len(cv):
@@ -600,8 +627,8 @@ def from_manifest(args, dest, work):
     if missing:
         print(f"MISSING upstream: {len(missing)} ({missing[:5]} ...)")
     if bad:
-        print(f"HASH MISMATCH on {len(bad)} clips; the upstream corpus is not "
-              f"the one this manifest describes:")
+        print(f"HASH MISMATCH on {len(bad)} clips; decoded audio differs from "
+              f"the manifest. Source or decoder differences require investigation:")
         for stem, want_h, got_h in bad[:10]:
             print(f"  {stem}: expected {want_h[:16]}... got {got_h[:16]}...")
     return 0 if (ok and not bad and not missing) else 1
@@ -627,7 +654,7 @@ def main():
                          "replacing them (used to combine two corpora)")
     ap.add_argument("--from-manifest",
                     help="re-fetch and hash-verify an existing manifest "
-                         "instead of selecting a new sample (the CI path)")
+                         "instead of selecting a new sample (upstream decoder audit)")
     args = ap.parse_args()
 
     if not have_ffmpeg():

@@ -7,19 +7,19 @@ files are not interchangeable with this release report.
 
 ## Reproducing the release check
 
-Use Python with `praat-parselmouth==0.4.7` and NumPy installed, Rust/Cargo,
-and FFmpeg for reconstructing public audio. From this directory:
+Use Python with `praat-parselmouth==0.4.7` and NumPy installed, and
+Rust/Cargo. From this directory:
 
 ```sh
-python sample_public.py --from-manifest wavs/public/manifest.csv
-python -m unittest test_release_check
+python fetch_public.py
+python -m unittest test_release_check test_audio_identity test_sample_public test_fetch_public
 python release_check.py --out release_report.json
 cargo build --locked --release --manifest-path ../core/Cargo.toml --example voice_report --example spectral_moments
 python voice_quality_check.py
 python spectral_check.py
 ```
 
-`release_check.py` verifies every public WAV hash and the committed speaker
+`release_check.py` verifies every original public WAV file hash and the committed speaker
 partition before scoring. It synthesizes fresh test signals, copies only
 manifest-listed public audio to a temporary directory and regenerates
 Praat references there. Private participant speech and existing caches
@@ -51,10 +51,33 @@ aggregate gates. Synthetic ground-truth diagnostics are distinct from
 agreement with Praat. Consult the per-file report before generalizing
 an aggregate result to a particular signal.
 
-The public tier contains 360 recordings from 120 speakers. `sample_public.py`
-reconstructs CIEMPIESS Light and Spanish Common Voice selections from
-pinned upstream revisions and verifies each clip against its committed
-SHA-256. The manifest and provenance are committed; generated audio is not.
+The public tier contains 360 recordings from 120 speakers. `fetch_public.py`
+downloads the preserved WAV archive identified by `public_audio_archive.json`,
+checks its SHA-256 and verifies all original file hashes against the committed
+manifest before installing the files. The archive contains only those 360
+public recordings, their manifest, provenance and
+[licence notice](PUBLIC_AUDIO_LICENSES.md). CIEMPIESS Light retains CC BY-SA
+4.0; Common Voice retains CC0. Audio is distributed as a separate release
+asset and is absent from Git history.
+
+The upstream reconstruction script, `sample_public.py --from-manifest`,
+uses hash-verified CIEMPIESS Parquet shards at the original pinned revision
+and the pinned Common Voice tarball. It requires FFmpeg and PyArrow 25.0.1.
+This avoids the dynamic CIEMPIESS filter service, which returned repeated
+HTTP 500/504 responses in CI. The reconstruction audit checks a second
+`pcm_sha256` identity: little-endian `<IIIQ` sample rate, channel count,
+sample width and frame count, followed by PCM bytes, excluding RIFF text
+metadata. Those identities were derived after verifying the original
+WAV file hashes. All 261 reconstructed CIEMPIESS clips matched their PCM
+identities locally. All 99 reconstructed Common Voice clips differed,
+with both FFmpeg 8.0 and 8.1.2 on macOS ARM64. In `cv01_01`, 84 of 72,576
+samples differed by one 16-bit integer step. The cause has not been
+established. The reconstruction audit fails on those differences.
+
+CI and release scoring use the preserved WAV bytes and their original
+file hashes. No decoded samples, selected clips, speaker partition,
+analysis parameters or numerical thresholds were changed to obtain
+reproducible release checks.
 
 `split.py` assigns each speaker from one BLAKE2b hash bit. The current
 committed partition has 56 calibration speakers (168 recordings) and

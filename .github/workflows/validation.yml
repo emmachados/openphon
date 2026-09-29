@@ -130,27 +130,15 @@ jobs:
           python-version: "3.11"
 
       - name: Install the reference stack
-        run: |
-          pip install "$PARSELMOUTH" numpy
-          sudo apt-get update && sudo apt-get install -y ffmpeg
+        run: pip install "$PARSELMOUTH" numpy
 
-      # The Common Voice half arrives as a 750 MB tarball rather than as
-      # clip-addressable rows, because the dataset is too large for the
-      # hub's rows API. Caching it keeps a re-run from re-fetching it; the
-      # key is the pinned revision, so a corpus change misses the cache
-      # rather than being served a stale copy.
-      - uses: actions/cache@v4
-        with:
-          path: validation/.corpus_cache
-          key: cv17-es-test-8262c16b
-
-      - name: Rebuild the gated tier from its manifest, verifying every hash
+      - name: Download the preserved public tier and verify every original WAV hash
         working-directory: validation
-        run: python sample_public.py --from-manifest wavs/public/manifest.csv
+        run: python fetch_public.py
 
       - name: Test release evidence integrity checks
         working-directory: validation
-        run: python -m unittest test_release_check
+        run: python -m unittest test_release_check test_audio_identity test_sample_public test_fetch_public
 
       - name: Regenerate release evidence from verified audio and fresh references
         working-directory: validation
@@ -163,7 +151,11 @@ jobs:
           {
             echo "## Gated real-speech tier (evaluation half)"
             echo
-            echo "Rebuilt from the committed manifest; every clip hash verified."
+            if test -f public_report.json; then
+              echo "Preserved public archive and all original WAV file hashes verified."
+            else
+              echo "No complete public report was produced. Inspect the failed step."
+            fi
             echo
             echo '```'
             sed -n '/aggregate (public/,/^$/p' public_run.txt || true

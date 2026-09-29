@@ -22,6 +22,8 @@ VALIDATION = {
     "spectral_check.py", "formant_grid.py", "partition_public.json",
     "release_report.json", "release_voice_quality.txt", "release_spectral.txt",
     "wavs/public/manifest.csv", "wavs/public/provenance.json",
+    "audio_identity.py", "test_audio_identity.py", "test_sample_public.py",
+    "fetch_public.py", "test_fetch_public.py", "public_audio_archive.json", "PUBLIC_AUDIO_LICENSES.md",
 }
 EXCLUDED_PARTS = {
     "build", "target", ".dart_tool", ".git", ".gradle", "Pods", "ephemeral",
