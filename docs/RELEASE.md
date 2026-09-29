@@ -1,6 +1,6 @@
 # Release status and procedure
 
-Version 0.1.0, build 1, release candidate. Checked on 28 September 2026.
+Version 0.1.0, build 1, release candidate. Local application checks: 28 September 2026. Remote validation: 29 September 2026.
 
 ## Verified locally
 
@@ -27,11 +27,10 @@ B3:04:5A:5A:BA:94:1B:75:46:33:A2:8F:89:60:F3:90:83:59:B7:99:46:34:E9:95:98:67:7A
 
 The APK targets API 36, requires API 24, has no Internet permission and
 disables backups. ZIP alignment passes `zipalign -c -P 16 -v 4`; all ARM64
-and x86_64 native LOAD segments have alignment of at least 16 KB. The nine native integration tests also pass on the 16 KB emulator with
-Android page-size compatibility fallback disabled.
-The exact signed production APK also starts with that fallback disabled;
-its process remained
-alive and the checked startup logs contained no crash. The release-mode
+and x86_64 native LOAD segments have alignment of at least 16 KB. The nine
+native integration tests also pass on the 16 KB emulator with Android
+page-size compatibility fallback disabled. The exact signed production
+APK also starts with that fallback disabled; its process remained alive and the checked startup logs contained no crash. The release-mode
 startup check does not replace the debug-mode native integration suite.
 
 The iOS release application compiles and a development-signed archive
@@ -86,7 +85,25 @@ transcripts, audio, local inputs and the original Git history. Inspect
 `SOURCE_MANIFEST.json` and the actual staged files before publishing.
 Existing working files in the research repository are preserved.
 
-CI recompiles unsigned production artifacts and regenerates validation
-evidence. The first remote runs are being checked at
-https://github.com/emmachados/openphon/actions. Local results alone do not
-establish a successful remote run.
+## Published candidate and remote evidence
+
+The [Android release candidate](https://github.com/emmachados/openphon/releases/tag/v0.1.0-rc.1)
+provides a signed APK, App Bundle, checksums and verification metadata.
+The [public benchmark archive](https://github.com/emmachados/openphon/releases/tag/validation-public-v1)
+preserves the original WAV bytes with source attribution and licences.
+The [privacy policy](https://emmamachado.com/openphon/privacy.html) is live.
+
+[Application CI](https://github.com/emmachados/openphon/actions/runs/36453679986)
+passed analysis, 134 Flutter tests, Android production packaging, nine iOS
+native tests and iOS production compilation at `962118e`. The application,
+core, CLI and application workflow are unchanged by the subsequent
+validation and documentation commits.
+
+[Validation CI](https://github.com/emmachados/openphon/actions/runs/36534135577)
+passed at `995bd1f`, including core and CLI tests, synthetic, voice-quality
+and spectral checks, public archive and WAV hash verification, 13 integrity
+tests and fresh public-speech scoring. All enforced numerical checks pass.
+Public voicing remains below target: 89.48492% in the Linux run and
+89.48285% in the recorded macOS run. Each report records its environment.
+CI packages are unsigned verification outputs; the separately signed
+release assets are the installation and store-processing candidates.
