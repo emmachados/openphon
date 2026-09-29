@@ -12,8 +12,11 @@ builds pass. The native integration suite passes on Android and iOS
 simulators, including Rust analysis, playback, TextGrid replacement and
 storage preparation. An iOS development archive builds, but App Store
 export requires an enrolled developer team with distribution access.
-Physical microphone capture and store submission remain unverified.
-Download the [Android prerelease](https://github.com/emmachados/openphon/releases/tag/v0.1.0-rc.1).
+The owner has verified iPhone recording, playback, persistence, interruption
+recovery and microphone permission recovery. Physical Android recording
+and native import/sharing checks remain outstanding. Neither store
+submission has been performed.
+Download the [Android prerelease](https://github.com/emmachados/openphon/releases/tag/v0.1.0-rc.2).
 See [release status](docs/RELEASE.md) and [build instructions](app/README.md).
 
 The current [validation report](docs/VALIDATION.md) is backed by freshly

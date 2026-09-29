@@ -1,13 +1,14 @@
 # Release status and procedure
 
-Version 0.1.0, build 2, release candidate 2 in preparation. Local application checks: 28 September 2026. Remote validation: 29 September 2026.
+Version 0.1.0, build 2, release candidate 2. Application and device checks
+updated on 29 September 2026. Remote numerical validation: 29 September 2026.
 
 ## Verified locally
 
-Static analysis reports no issues. All 137 Flutter tests pass. The nine
-native integration tests pass on an Android 16 ARM64 emulator with 4 KB
-pages, an Android 16 ARM64 emulator with 16 KB pages, and an iPad simulator
-running iOS 26.5. These tests exercise Rust
+Static analysis reports no issues. All 137 Flutter tests pass. Build 2
+passes the nine native integration tests on an Android 16 ARM64 emulator
+with 16 KB pages and an iPad simulator running iOS 26.5. Build 1 also passed
+the same suite on Android with 4 KB pages. These tests exercise Rust
 analysis, malformed input, TextGrid reading and replacement, playback and
 storage preparation. The core suite passes 74 tests, with one ignored;
 the CLI suite passes four tests.
@@ -40,41 +41,44 @@ profiles and the account has no associated App Store Connect provider.
 The account owner has confirmed that Developer Program enrollment is pending.
 A development archive is not a publicly distributable iOS package.
 
-On 29 September, the development-signed Release archive installed on an
-iPhone 17 running iOS 26.6 over the local network. After an initial generic
-signing, entitlement or profile-trust rejection, the owner confirmed that
-the installed app opened successfully; the device process list independently
-confirmed the same installed `Runner.app` was running. The archive's
-signature verifies on macOS, its current provisioning profile includes the
-test device, and Developer Mode is enabled. The owner also verified a complete test recording, playback and reopening
-with playback after restarting the app. Its exported WAV was inspected
-locally: 44,100 Hz, one channel, 16-bit PCM, 449,320 frames (10.189 seconds),
-with a complete sample payload. The recording is not published. These
-checks used release candidate 1; interruption recovery remains unverified
-on physical hardware. The current `flutter test` command
-rejects wireless iOS connections before executing tests; no physical native
-test pass is claimed.
+On 29 September, the development-signed Release archive installed and ran
+on an iPhone 17 running iOS 26.6. The owner verified a complete test
+recording, playback and reopening with playback after restarting build 1.
+Its exported WAV was inspected locally: 44,100 Hz, one channel, 16-bit PCM,
+449,320 frames (10.189 seconds), with a complete sample payload. The
+recording is not published. Updating in place to build 2 preserved that
+WAV byte for byte, and the updated archive launched successfully.
 
-## Build 2 verification in progress
+On build 2, the owner verified that an audio interruption displays
+"Paused · Stop" and that Stop saves the captured portion. The owner also
+verified microphone permission denial without a false recording entry,
+then successful recording after restoring permission. These are manual
+physical-device results reported by the owner. The automated native suite
+has not run on the physical iPhone: the current `flutter test` command
+rejects wireless connections before executing tests. Its documented
+`--no-uninstall` option must be retained when testing a device containing
+recordings.
+
+## Build 2 recording change
 
 Build 2 fixes a confirmed UI defect: the native recorder pauses on an audio
 interruption, but build 1 continued to display its recording timer. The
 updated UI observes pause events, including events received while startup
 is pending, and offers Stop to save the captured portion. Its three
-regression tests pass, including retry after a stop error. Production
-packages and remote application checks for build 2 are being regenerated.
-Previously published packages and build evidence below refer to build 1
-unless a newer build is explicitly identified.
+regression tests pass, including retry after a stop error. Signed Android
+production packages and the development-signed iOS archive have been
+rebuilt with version `0.1.0+2`. Their signatures verify; both Android
+packages contain all 84 Rust dependency licence notices.
 
 ## Outstanding release checks
 
 Android microphone capture, permission denial and recovery, audio
-interruption on both platforms, and Android's native document picker and
-sharing interface require device verification. The iPhone check above
-establishes a single complete recording and playback cycle; it does not
-establish timing accuracy across recording devices or operating systems. Backup/restore and
-device-transfer exclusions have not been exercised through a physical
-device transfer.
+interruption, and Android's native document picker and sharing interface
+require device verification. A separate background/foreground recording
+transition has not been verified on either physical platform. The iPhone
+checks above do not establish timing accuracy across recording devices or
+operating systems. Backup/restore and device-transfer exclusions have not
+been exercised through a physical device transfer.
 
 App Store distribution requires an active Apple Developer Program
 membership, accepted agreements and appropriate team access. Google Play
@@ -130,16 +134,18 @@ Existing working files in the research repository are preserved.
 
 ## Published candidate and remote evidence
 
-The [Android release candidate](https://github.com/emmachados/openphon/releases/tag/v0.1.0-rc.1)
+The [Android release candidate](https://github.com/emmachados/openphon/releases/tag/v0.1.0-rc.2)
 provides a signed APK, App Bundle, checksums and verification metadata.
 The [public benchmark archive](https://github.com/emmachados/openphon/releases/tag/validation-public-v1)
 preserves the original WAV bytes with source attribution and licences.
 The [privacy policy](https://emmamachado.com/openphon/privacy.html) is live.
 
-[Application CI](https://github.com/emmachados/openphon/actions/runs/36453679986)
-passed analysis, 134 Flutter tests, Android production packaging, nine iOS
-native tests and iOS production compilation at `962118e`. That run covers build 1. Build 2 application results are pending; the
-core, CLI and numerical validation code remain unchanged.
+[Build 2 application CI](https://github.com/emmachados/openphon/actions/runs/36537204654)
+at `b36f1d2` has passed analysis, 137 Flutter tests and Android production
+packaging. The remote iOS native-test job is still running; its result is
+pending. Local build 2 iOS native tests, unsigned production compilation
+and the development-signed archive have passed. The core, CLI and
+numerical validation code remain unchanged.
 
 [Validation CI](https://github.com/emmachados/openphon/actions/runs/36534135577)
 passed at `995bd1f`, including core and CLI tests, synthetic, voice-quality

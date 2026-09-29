@@ -61,8 +61,10 @@ They cannot be distributed as signed installation packages.
 Local verification has passed 137 Flutter tests and nine native integration
 tests on each mobile platform. Native iPad WAV and TextGrid pickers, paired
 sharing, saving to Files, reimport and annotation display have been checked.
-Physical microphone capture and Android's native picker/share interface
-still require device checks. See [release status](../docs/RELEASE.md).
+The owner has verified iPhone capture, playback, persistence, interruption
+recovery and microphone permission recovery. Physical Android capture and
+its native picker/share interface still require device checks. See
+[release status](../docs/RELEASE.md) for the build and device used in each check.
 
 ### Android signing
 
