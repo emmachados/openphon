@@ -1,10 +1,10 @@
 # Release status and procedure
 
-Version 0.1.0, build 1, release candidate. Local application checks: 28 September 2026. Remote validation: 29 September 2026.
+Version 0.1.0, build 2, release candidate 2 in preparation. Local application checks: 28 September 2026. Remote validation: 29 September 2026.
 
 ## Verified locally
 
-Static analysis reports no issues. All 134 Flutter tests pass. The nine
+Static analysis reports no issues. All 137 Flutter tests pass. The nine
 native integration tests pass on an Android 16 ARM64 emulator with 4 KB
 pages, an Android 16 ARM64 emulator with 16 KB pages, and an iPad simulator
 running iOS 26.5. These tests exercise Rust
@@ -40,12 +40,39 @@ profiles and the account has no associated App Store Connect provider.
 The account owner has confirmed that Developer Program enrollment is pending.
 A development archive is not a publicly distributable iOS package.
 
+On 29 September, the development-signed Release archive installed on an
+iPhone 17 running iOS 26.6 over the local network. After an initial generic
+signing, entitlement or profile-trust rejection, the owner confirmed that
+the installed app opened successfully; the device process list independently
+confirmed the same installed `Runner.app` was running. The archive's
+signature verifies on macOS, its current provisioning profile includes the
+test device, and Developer Mode is enabled. The owner also verified a complete test recording, playback and reopening
+with playback after restarting the app. Its exported WAV was inspected
+locally: 44,100 Hz, one channel, 16-bit PCM, 449,320 frames (10.189 seconds),
+with a complete sample payload. The recording is not published. These
+checks used release candidate 1; interruption recovery remains unverified
+on physical hardware. The current `flutter test` command
+rejects wireless iOS connections before executing tests; no physical native
+test pass is claimed.
+
+## Build 2 verification in progress
+
+Build 2 fixes a confirmed UI defect: the native recorder pauses on an audio
+interruption, but build 1 continued to display its recording timer. The
+updated UI observes pause events, including events received while startup
+is pending, and offers Stop to save the captured portion. Its three
+regression tests pass, including retry after a stop error. Production
+packages and remote application checks for build 2 are being regenerated.
+Previously published packages and build evidence below refer to build 1
+unless a newer build is explicitly identified.
+
 ## Outstanding release checks
 
-Physical-device microphone capture, permission denial and recovery, audio
-interruption, and Android's native document picker and sharing interface
-require device verification. The current tests do not establish microphone
-sample integrity on physical Android or iOS devices. Backup/restore and
+Android microphone capture, permission denial and recovery, audio
+interruption on both platforms, and Android's native document picker and
+sharing interface require device verification. The iPhone check above
+establishes a single complete recording and playback cycle; it does not
+establish timing accuracy across recording devices or operating systems. Backup/restore and
 device-transfer exclusions have not been exercised through a physical
 device transfer.
 
@@ -59,6 +86,22 @@ The public-speech voicing target is unmet: 89.48285% against a target above
 90%. It remains report-only in CI. The release description must retain
 this limitation and must not claim universal agreement with Praat. See
 [validation](VALIDATION.md) for the other metrics and their interpretation.
+
+## Remaining device verification procedure
+
+Use the signed Android APK and a development or TestFlight iOS candidate
+with the same application source. Record the installed version, operating
+system, hardware and outcome for each check. Use generated audio or an
+explicitly consented test recording.
+
+| Check | Procedure and required observation |
+|---|---|
+| Capture and persistence | Record a signal with identifiable beginning and end, stop, reopen and play it, then restart the app and reopen it again. Inspect the exported WAV for both markers, complete PCM data and the actual sample rate and channel count. The library metadata must agree with the file. Default capture requests mono at 44,100 Hz with gain, echo cancellation and noise suppression disabled. |
+| Permission recovery | Deny microphone permission and attempt recording. Confirm the denial is reported without creating a false recording entry. Grant permission through device settings, return and complete a recording. |
+| Interruption recovery | During a consented test recording, exercise an audio-session interruption and a background/foreground transition. Record whether capture stops or resumes, verify that the controls reflect its state, and check that any saved WAV reopens. Preserve the error and sample evidence if the states disagree. |
+| Android provider import | Use the native picker to import a known WAV and its matching TextGrid from a document provider. Cancel each picker once. Verify successful imports reopen with the expected duration and tier, and cancellation leaves the library and current editor intact. |
+| Android paired sharing | Export the WAV and TextGrid together through the native share sheet into a selected storage provider. Reimport the pair and verify the samples and annotation contents. |
+| Physical backup exclusions | Inspect an actual device backup or restore/transfer using test recordings and annotations. Verify the internal library is excluded and deliberately exported copies remain under the selected provider's control. Do not treat the existing attribute readback test as proof of a device transfer. |
 
 ## Building and publishing
 
@@ -95,9 +138,8 @@ The [privacy policy](https://emmamachado.com/openphon/privacy.html) is live.
 
 [Application CI](https://github.com/emmachados/openphon/actions/runs/36453679986)
 passed analysis, 134 Flutter tests, Android production packaging, nine iOS
-native tests and iOS production compilation at `962118e`. The application,
-core, CLI and application workflow are unchanged by the subsequent
-validation and documentation commits.
+native tests and iOS production compilation at `962118e`. That run covers build 1. Build 2 application results are pending; the
+core, CLI and numerical validation code remain unchanged.
 
 [Validation CI](https://github.com/emmachados/openphon/actions/runs/36534135577)
 passed at `995bd1f`, including core and CLI tests, synthetic, voice-quality

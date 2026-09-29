@@ -28,7 +28,7 @@ voicing result below its target. openphon is not a medical diagnostic tool.
 ## Submission information
 
 Application identifier: `app.openphon.openphon` on Android and iOS.
-Version: `0.1.0`. Build number: `1`.
+Version: `0.1.0`. Build number: `2`.
 Language: English.
 Suggested category: Education.
 

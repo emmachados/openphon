@@ -21,6 +21,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get record => 'Record';
 
   @override
+  String get recordingPaused => 'Paused · Stop';
+
+  @override
   String clippingWarning(String elapsed) {
     return '$elapsed · clipping!';
   }

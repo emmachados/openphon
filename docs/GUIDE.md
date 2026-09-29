@@ -15,6 +15,11 @@ The DSP switches default to off: for acoustic measurement the signal
 should reach the analysis unprocessed, and they should stay off unless
 a recording is unusable without them.
 
+An audio interruption can pause capture. The button then reads
+**Paused · Stop**, and elapsed capture time stops advancing. Tap it to
+save the portion already recorded; begin a new recording when ready.
+Capture does not resume automatically after the interruption.
+
 ## Importing
 
 The import button on the library screen accepts WAV files from the
