@@ -47,7 +47,9 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final RecorderService _recorder = RecorderService();
   bool _recording = false;
-  DateTime? _recordingStart;
+  bool _recordingPaused = false;
+  final Stopwatch _recordingClock = Stopwatch();
+  StreamSubscription<bool>? _pauseSub;
   StreamSubscription<double>? _levelSub;
   DateTime? _lastClipAt;
 
@@ -192,6 +194,8 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _ticker?.cancel();
+    _recordingClock.stop();
+    _pauseSub?.cancel();
     _levelSub?.cancel();
     _recorder.dispose();
     super.dispose();
@@ -207,6 +211,11 @@ class _HomePageState extends State<HomePage> {
     try {
       await _toggleRecordingInner();
     } catch (e) {
+      if (!_recording) {
+        _recordingClock.stop();
+        await _pauseSub?.cancel();
+        _pauseSub = null;
+      }
       if (mounted) _snack(AppLocalizations.of(context)!.recordingFailed('$e'));
     } finally {
       _toggling = false;
@@ -218,6 +227,9 @@ class _HomePageState extends State<HomePage> {
     if (_recording) {
       final path = await _recorder.stop();
       _ticker?.cancel();
+      _recordingClock.stop();
+      await _pauseSub?.cancel();
+      _pauseSub = null;
       await _levelSub?.cancel();
       _levelSub = null;
       _lastClipAt = null;
@@ -270,13 +282,33 @@ class _HomePageState extends State<HomePage> {
         return;
       }
       _activeRecordingOptions = widget.prefs.recordingOptions;
+      _recordingPaused = false;
+      _recordingClock.reset();
+      // Subscribe before start: an interruption can arrive while the native
+      // start future is still pending. Do not reset its state afterward.
+      _pauseSub = _recorder.pauseChanges().listen(
+        (paused) {
+          if (!mounted) return;
+          if (paused) {
+            _recordingClock.stop();
+          } else {
+            _recordingClock.start();
+          }
+          setState(() => _recordingPaused = paused);
+        },
+        onError: (Object error) {
+          if (mounted) {
+            _snack(AppLocalizations.of(context)!.recordingFailed('$error'));
+          }
+        },
+      );
       await _recorder.start(options: _activeRecordingOptions!);
       _levelSub = _recorder.levelDbfs().listen((db) {
         if (db >= clipThresholdDbfs && mounted) {
           setState(() => _lastClipAt = DateTime.now());
         }
       });
-      _recordingStart = DateTime.now();
+      if (!_recordingPaused) _recordingClock.start();
       _ticker = Timer.periodic(
         const Duration(seconds: 1),
         (_) => setState(() {}),
@@ -559,6 +591,7 @@ class _HomePageState extends State<HomePage> {
                   // the 1 s elapsed-label ticker also retires it.
                   final clipping =
                       _recording &&
+                      !_recordingPaused &&
                       clipIndicatorActive(_lastClipAt, DateTime.now());
                   return FloatingActionButton.extended(
                     onPressed: _toggleRecording,
@@ -566,6 +599,8 @@ class _HomePageState extends State<HomePage> {
                     label: Text(
                       !_recording
                           ? l10n.record
+                          : _recordingPaused
+                          ? l10n.recordingPaused
                           : clipping
                           ? l10n.clippingWarning(_elapsedLabel(l10n))
                           : _elapsedLabel(l10n),
@@ -642,9 +677,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   String _elapsedLabel(AppLocalizations l10n) {
-    final start = _recordingStart;
-    if (start == null) return l10n.stop;
-    final s = DateTime.now().difference(start).inSeconds;
+    final s = _recordingClock.elapsed.inSeconds;
     return l10n.stopElapsed(
       '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}',
     );

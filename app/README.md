@@ -28,7 +28,7 @@ flutter test --no-pub
 flutter build apk --debug --target-platform android-arm64 --no-pub
 flutter build ios --simulator --debug --no-pub
 flutter devices
-flutter test integration_test --no-pub -d <device-id>
+flutter test integration_test --no-pub --no-uninstall -d <device-id>
 ```
 
 For Android, set `JAVA_HOME` to a Java 17 installation. Select a device
@@ -36,6 +36,13 @@ identifier from `flutter devices`; do not assume a particular simulator
 or connected phone. Native integration tests require a supported target.
 The iOS simulator suite covers bridge calls, DSP, TextGrid I/O, playback
 and backup-exclusion readback.
+
+`--no-uninstall` retains the app data after native tests. Flutter 3.47's
+`flutter test` otherwise uninstalls the app by default; use the flag on a
+device that contains recordings. This command requires a USB connection
+for a physical iPhone because its test configuration disables publication
+of the debugging port. Installing or launching the signed release archive
+over the local network is a separate operation.
 
 After editing `rust/src/api/*.rs`, regenerate the bridge with
 `flutter_rust_bridge_codegen generate` using version 2.12.x. After changing
@@ -51,7 +58,7 @@ production packaging, iOS simulator integration tests and unsigned iOS
 production compilation. The unsigned CI artifacts are verification outputs.
 They cannot be distributed as signed installation packages.
 
-Local verification has passed 134 Flutter tests and nine native integration
+Local verification has passed 137 Flutter tests and nine native integration
 tests on each mobile platform. Native iPad WAV and TextGrid pickers, paired
 sharing, saving to Files, reimport and annotation display have been checked.
 Physical microphone capture and Android's native picker/share interface

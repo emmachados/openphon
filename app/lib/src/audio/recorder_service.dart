@@ -79,6 +79,7 @@ class RecordingOptions {
     autoGain: autoGain,
     echoCancel: echoCancel,
     noiseSuppress: noiseSuppress,
+    audioInterruption: AudioInterruptionMode.pause,
   );
 
   Map<String, Object> toMap() => {
@@ -152,6 +153,13 @@ class RecorderService {
   /// Stops recording and returns the file path, or null if nothing was
   /// recorded.
   Future<String?> stop() => _recorder.stop();
+
+  /// Native interruptions pause capture by default. A paused take remains
+  /// available for the user to finish and save with [stop].
+  Stream<bool> pauseChanges() => _recorder
+      .onStateChanged()
+      .where((state) => state != RecordState.stop)
+      .map((state) => state == RecordState.pause);
 
   Stream<Amplitude> amplitude() =>
       _recorder.onAmplitudeChanged(const Duration(milliseconds: 100));

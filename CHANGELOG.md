@@ -1,6 +1,13 @@
 # Changelog
 
-## 0.1.0 release candidate
+## 0.1.0 release candidate 2, build 2
+
+Native audio interruptions now update the recording button to **Paused · Stop**
+and stop the elapsed capture clock. The captured portion remains available
+for saving, including when an interruption arrives during startup or a stop
+attempt fails and is retried. Three widget regression tests cover these cases.
+
+## 0.1.0 release candidate 1, build 1
 
 The initial release includes local WAV recording and import, waveform and
 spectrogram views, pitch, intensity and formant analysis, TextGrid editing,

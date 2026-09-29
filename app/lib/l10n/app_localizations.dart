@@ -118,6 +118,12 @@ abstract class AppLocalizations {
   /// **'Record'**
   String get record;
 
+  /// Recording was paused by a native audio interruption; Stop saves the captured portion.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused · Stop'**
+  String get recordingPaused;
+
   /// No description provided for @clippingWarning.
   ///
   /// In en, this message translates to:

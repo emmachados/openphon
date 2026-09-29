@@ -6,6 +6,8 @@
   "retry": "Retry",
 
   "record": "Record",
+  "recordingPaused": "Paused · Stop",
+  "@recordingPaused": {"description": "Recording was paused by a native audio interruption; Stop saves the captured portion."},
   "clippingWarning": "{elapsed} · clipping!",
   "@clippingWarning": {"placeholders": {"elapsed": {"type": "String"}}},
   "stop": "Stop",
