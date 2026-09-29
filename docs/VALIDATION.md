@@ -111,15 +111,18 @@ figures do not directly validate every displayed formant. Changing the
 ceiling, pitch range or other settings also changes what is measured.
 
 The application verification includes signed Android production packages,
-an iOS development archive, 134 Flutter tests and nine native integration
+an iOS development archive, 137 Flutter tests and nine native integration
 tests on each of Android and iOS simulators. The native tests cover the Rust
 bridge, analyses, TextGrid round trips and atomic replacement, playback,
 invalid input and storage preparation. iOS backup-exclusion attributes are
 read back by the native test. A synthetic WAV and TextGrid were exported
 through the iPad share sheet, saved in local Files and imported back through
-both native pickers; the annotation tier was displayed. Physical-device
-microphone capture and Android's native picker/share UI remain unverified.
-App Store export is blocked by developer-account distribution access.
+both native pickers; the annotation tier was displayed. On 29 September,
+the owner verified iPhone recording, playback and persistence on build 1,
+then interruption recovery and microphone permission denial and recovery
+on build 2. The update preserved the existing test WAV byte for byte.
+Physical Android capture and its native picker/share UI remain unverified.
+App Store export is blocked while developer enrollment is pending.
 See [release status](RELEASE.md) for packaging and submission limits.
 
 ## Reproduction
