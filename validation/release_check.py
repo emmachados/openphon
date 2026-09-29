@@ -1,6 +1,6 @@
 """Regenerate release track evidence without reading the private speech tier.
 
-Requires the public WAVs reconstructed by sample_public.py --from-manifest.
+Requires the preserved public WAVs downloaded by fetch_public.py.
 Verifies their hashes and speaker partition, synthesizes fresh test signals,
 and generates new Praat references in a temporary directory. The existing
 public-voicing CI exception is recorded explicitly; its 90% target is unchanged.
@@ -67,16 +67,17 @@ def verify_public(directory, partition_file):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, default=HERE / "release_report.json")
+    parser.add_argument("--public-directory", type=Path, default=HERE / "wavs/public")
     args = parser.parse_args()
     output = args.out.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     if parselmouth.__version__ != "0.4.7" or parselmouth.PRAAT_VERSION != "6.1.38":
         raise RuntimeError("Release references require praat-parselmouth 0.4.7 / Praat 6.1.38")
 
-    public = HERE / "wavs/public"
+    public = args.public_directory.resolve()
     partition_file = HERE / "partition_public.json"
     rows, assignment = verify_public(public, partition_file)
-    print(f"Verified {len(rows)} public WAV hashes and {len(assignment)} speaker assignments")
+    print(f"Verified {len(rows)} original public WAV hashes and {len(assignment)} speaker assignments")
     with tempfile.TemporaryDirectory(prefix="openphon_release_") as tmp:
         work = Path(tmp)
         wavs, refs = work / "wavs", work / "refs"
@@ -125,7 +126,8 @@ def main():
         root / "core/examples/tracks_csv.rs",
         *[HERE / name for name in (
             "compare.py", "gridalign.py", "generate_references.py",
-            "synthesize.py", "split.py", "release_check.py",
+            "synthesize.py", "split.py", "release_check.py", "audio_identity.py", "sample_public.py",
+            "fetch_public.py", "public_audio_archive.json",
         )],
     ]
     report.pop("match_tol_s", None)  # Legacy nearest-frame metadata in compare.py.
@@ -141,6 +143,7 @@ def main():
                         "rustc": subprocess.check_output(["rustc", "--version"], text=True).strip()},
         "source_sha256": {str(path.relative_to(root)): sha256(path) for path in sources},
         "manifest_sha256": sha256(public / "manifest.csv"),
+        "audio_identity": "SHA-256 of original WAV file bytes; sha256 column in the committed manifest",
         "partition_sha256": sha256(partition_file),
         "evaluation_speakers": sum(half == "eval" for half in assignment.values()),
     })

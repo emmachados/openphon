@@ -39,8 +39,9 @@ Adult female / Child chips prefill the standard ranges. Defaults follow
 Praat's (10 ms step, F0 75–600 Hz, 5 formants below 5500 Hz, 25 ms
 formant window, pre-emphasis from 50 Hz).
 
-Analysis accuracy is validated against Praat before every release; see
-`VALIDATION.md` for gates and current results.
+The [validation report](VALIDATION.md) describes agreement with Praat at
+specified settings. Public-speech voicing agreement remains below its
+target; the report gives the numerical results and their limits.
 
 ## Annotation
 
@@ -48,6 +49,10 @@ Create a TextGrid from the annotation menu, then add interval or point
 tiers. On touch screens, boundaries are inserted, selected, and dragged
 with a finger (a time readout follows the dragged boundary); labels are
 edited by double-tap. All edits undo/redo.
+
+Use **Save TextGrid** to save edits. Leaving a recording with unsaved
+changes offers Save, Discard and Cancel. If saving fails, the editor stays
+open. Edits made during an ongoing save remain marked as unsaved.
 
 ## Exporting
 
@@ -58,15 +63,15 @@ From the annotation menu:
   active tier: duration, mean/median F0, F1–F3 at the midpoint, mean
   intensity.
 
-On Android both exports open the system share sheet; on desktop they
+On Android and iOS both exports open the system share sheet; on desktop they
 open a save dialog. The library screen's menu also offers **Export
 measurements (library)**: one CSV over every recording that has a
-TextGrid, with a leading `file` column — the same format as the CLI's
+TextGrid, with a leading `file` column, the same format as the CLI's
 batch mode. Recordings are ordinary WAV files in the app's private
 storage; library tiles offer rename and delete.
 
 ## Command line
 
 The same analyses are scriptable with `openphon-cli` (see
-`cli/README.md`): track extraction to CSV, batch measurement recipes
+[the CLI instructions](../cli/README.md)): track extraction to CSV, batch measurement recipes
 over WAV + TextGrid pairs, and point-tier event listings.

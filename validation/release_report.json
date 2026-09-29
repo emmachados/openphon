@@ -10343,7 +10343,7 @@
   },
   "passed": true,
   "scoring": "Balanced common frame grid; see gridalign.py and coverage diagnostics",
-  "generated_at_utc": "2026-09-28T14:47:43.209995+00:00",
+  "generated_at_utc": "2026-09-28T18:03:53.977516+00:00",
   "checks": [
     {
       "tier": "synth",
@@ -10470,9 +10470,14 @@
     "validation/generate_references.py": "2ebdb11bb9e83d6a33b82206a69fd18022ef729149ac783b623e9df3db227abe",
     "validation/synthesize.py": "307efc4dd6e0f77d94978de01988a7eac266f00ec55c9b116e7d8aaed56ad739",
     "validation/split.py": "5e1f451e04088e6aae9555d8f5cc9c655f3006937dcbd2d0dfd07619a4b741b3",
-    "validation/release_check.py": "697f218749fd2fc162e8f49a8c174688947bc818fa5bda6ef83612df7dd5f320"
+    "validation/release_check.py": "2dba81e04323deb5588c5f6f96ba838508b127db7bde78e46675946f972b7a1d",
+    "validation/audio_identity.py": "e256c130fe663da2920fdbf23e2a95882dd009042abaf0b19f814a59db468660",
+    "validation/sample_public.py": "dfb2b0b8b34260b33f320b849e0b0eda384bd2de2d240008691f1fc3577ed7b3",
+    "validation/fetch_public.py": "51ca3ce7e2c41ffb5a60254c847d73d04e516d86557d8282f67cfe4d441b3ecc",
+    "validation/public_audio_archive.json": "7832dcef44a424c4ea40bbf9f40e252a76866563c252d94afac50ddf1de4d5c2"
   },
-  "manifest_sha256": "8dff9dcee4d3401d91941c7a83a0ee34d7b34fc48bdedb534626d0790402b1df",
+  "manifest_sha256": "8b2d38a6d6ea620b65d713c727e6c690ac9fe48b598ca05271c4beda38165fe8",
+  "audio_identity": "SHA-256 of original WAV file bytes; sha256 column in the committed manifest",
   "partition_sha256": "e71bfb3497885a4e95e0871840eac8c3c011cbdda30b276e60030ca777160a8a",
   "evaluation_speakers": 64
 }

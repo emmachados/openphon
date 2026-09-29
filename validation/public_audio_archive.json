@@ -1,0 +1,7 @@
+{
+  "url": "https://github.com/emmachados/openphon/releases/download/validation-public-v1/openphon-public-audio-v1.tar.gz",
+  "sha256": "5b7df3bd079d141131b997a2f8f49c1f3b3c659ace9ed4569d2774125e0a2b2b",
+  "bytes": 45638646,
+  "recordings": 360,
+  "identity": "Original WAV file bytes; sha256 column in wavs/public/manifest.csv"
+}

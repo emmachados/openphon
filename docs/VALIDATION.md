@@ -19,7 +19,7 @@ hashes of the source files, public manifest and speaker partition.
 Undefined diagnostic quantities are stored as JSON null.
 
 [release_check.py](../validation/release_check.py) verified all 360 WAV
-hashes in the public manifest and the committed partition of 120 speakers.
+file hashes in the public manifest and the committed partition of 120 speakers.
 The current hash-bit partition assigns 64 speakers, 192 recordings, to
 evaluation and 56 speakers, 168 recordings, to calibration. This rule
 assigns each speaker independently; adding another speaker cannot move
@@ -34,6 +34,18 @@ and generated fresh Praat references. No private participant audio or
 previously cached reference tracks entered this run. Missing or altered
 public audio, partition drift and omitted evaluation recordings cause the
 script to fail.
+
+The public WAV archive preserves the original benchmark bytes and is
+identified by a committed SHA-256. The downloader verifies the archive and
+all 360 original WAV file hashes before release scoring. The audio is
+redistributed with [source attribution and licences](../validation/PUBLIC_AUDIO_LICENSES.md).
+The source reconstruction audit also records PCM identities independent of
+RIFF metadata. All 261 CIEMPIESS PCM identities matched a fresh upstream
+reconstruction locally; all 99 Common Voice identities differed with both
+FFmpeg 8.0 and 8.1.2 on macOS ARM64. In `cv01_01`, 84 of 72,576 samples
+differed by one 16-bit integer step. The cause is unestablished. CI uses the
+preserved original WAV bytes, so this decoder difference changes neither
+the benchmark nor its scoring rules.
 
 Pitch defaults are a 10 ms step and a 75–600 Hz range. Formants use five
 candidates, a 5500 Hz ceiling, a 25 ms window and pre-emphasis from 50 Hz.
@@ -112,14 +124,14 @@ See [release status](RELEASE.md) for packaging and submission limits.
 
 ## Reproduction
 
-From the repository root, using Python with praat-parselmouth 0.4.7 and
-NumPy, Rust/Cargo and FFmpeg installed:
+From the repository root, using Python with praat-parselmouth 0.4.7,
+NumPy and Rust/Cargo installed:
 
 ```sh
 cargo build --locked --release --manifest-path core/Cargo.toml --example voice_report --example spectral_moments
 cd validation
-python sample_public.py --from-manifest wavs/public/manifest.csv
-python -m unittest test_release_check
+python fetch_public.py
+python -m unittest test_release_check test_audio_identity test_sample_public test_fetch_public
 python release_check.py --out release_report.json
 python voice_quality_check.py
 python spectral_check.py
