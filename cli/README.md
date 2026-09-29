@@ -1,8 +1,8 @@
 # openphon-cli
 
-Command-line companion to the openphon app: the same Praat-validated Rust
-DSP core (`openphon_core`), scriptable from a shell. Useful for batch
-pipelines (R, Python, shell loops) and Praat-free servers.
+Command-line interface to the Rust analysis core used by openphon. It
+reads WAV and TextGrid files and writes analysis tracks and annotation-based
+measurements as CSV. Praat is not required to run the CLI.
 
 ```
 cargo build --release          # binary at target/release/openphon
@@ -33,9 +33,9 @@ openphon measure     corpus_dir/ --tier phones      # batch: every WAV with a si
                                                     # TextGrid; adds a `file` column
 ```
 
-Run `openphon help` for all options. Defaults are identical to the app and
-to the parameters validated against Praat in `validation/`; `pitch` output
-is byte-identical to the validation harness's reference CSV layout.
+Run `openphon help` for all options. The analysis parameters and comparisons
+with Praat are described in the [validation report](../docs/VALIDATION.md).
+Pitch CSV uses the same column layout as the validation harness.
 
 Notes:
 

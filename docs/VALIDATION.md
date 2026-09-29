@@ -117,12 +117,12 @@ bridge, analyses, TextGrid round trips and atomic replacement, playback,
 invalid input and storage preparation. iOS backup-exclusion attributes are
 read back by the native test. A synthetic WAV and TextGrid were exported
 through the iPad share sheet, saved in local Files and imported back through
-both native pickers; the annotation tier was displayed. On 29 September,
-the owner verified iPhone recording, playback and persistence on build 1,
-then interruption recovery and microphone permission denial and recovery
-on build 2. The update preserved the existing test WAV byte for byte.
+both native pickers; the annotation tier was displayed. Manual test reports
+from 29 September cover iPhone recording, playback and persistence on
+build 1, and interruption and microphone permission recovery on build 2.
+The update preserved the test WAV byte for byte.
 Physical Android capture and its native picker/share UI remain unverified.
-App Store export is blocked while developer enrollment is pending.
+An App Store distribution build is not yet available.
 See [release status](RELEASE.md) for packaging and submission limits.
 
 ## Reproduction

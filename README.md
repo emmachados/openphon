@@ -1,56 +1,77 @@
 # openphon
 
-A phonetics application for phones and tablets. Record or import WAV
-speech, inspect synchronized waveform and spectrogram views, measure F0,
-intensity and formants, annotate tiers, and export WAV, TextGrid and
-measurement files. The code is licensed under Apache-2.0.
+openphon is an open-source application for phonetic analysis on Android and
+iOS. It records or imports WAV audio and displays waveforms, spectrograms,
+pitch, intensity and formants. Recordings can be annotated with interval
+and point tiers, saved as Praat TextGrids, and exported with measurements
+in CSV format. Audio processing runs on the device.
 
-## Status
+## Installation
 
-Version 0.1.0 is a release candidate. Signed Android APK and App Bundle
-builds pass. The native integration suite passes on Android and iOS
-simulators, including Rust analysis, playback, TextGrid replacement and
-storage preparation. An iOS development archive builds, but App Store
-export requires an enrolled developer team with distribution access.
-The owner has verified iPhone recording, playback, persistence, interruption
-recovery and microphone permission recovery. Physical Android recording
-and native import/sharing checks remain outstanding. Neither store
-submission has been performed.
-Download the [Android prerelease](https://github.com/emmachados/openphon/releases/tag/v0.1.0-rc.2).
-See [release status](docs/RELEASE.md) and [build instructions](app/README.md).
+Download the APK from the [latest Android prerelease](https://github.com/emmachados/openphon/releases/tag/v0.1.0-rc.2).
+Version 0.1.0 is a release candidate intended for testing. The accompanying
+AAB is for Google Play distribution, not direct installation. An iOS
+package is not yet available; iOS builds require Xcode and local signing.
 
-The current [validation report](docs/VALIDATION.md) is backed by freshly
-generated Praat references and a [machine-readable report](validation/release_report.json).
-Synthetic, voice-quality, spectral, and public-speech F0/formant checks
-pass. Public-speech voicing agreement is 89.48% on the committed evaluation
-subset, below the unchanged target of more than 90%. CI retains an explicit
-report-only exception for that metric. These results measure agreement
-with Praat at the tested settings; they do not establish accuracy for
-every recording or analysis setting.
+See the [release notes](CHANGELOG.md) for changes and the
+[release status](docs/RELEASE.md) for test coverage and outstanding checks.
 
-## Storage and formats
+## Using openphon
 
-Processing runs locally without a backend, accounts or telemetry. The
-mobile library is excluded from system backups through Android backup
-rules and iOS directory attributes. Exports use the system share sheet on
-mobile and save dialogs on desktop. Exported copies follow the storage
-and sharing choices made by the user. See the [privacy statement](docs/PRIVACY.md)
-and [user guide](docs/GUIDE.md).
+Record audio or import a WAV file, then select it in the library to open
+the analysis view. Waveforms, spectrograms and analysis tracks share a
+cursor and playback controls. Analysis settings are stored per recording.
+The annotation menu provides TextGrid editing and measurement export.
+The [user guide](docs/GUIDE.md) covers recording settings, supported WAV
+formats, annotation and export.
 
-## Repository layout
+The library is stored locally and excluded from automatic system backups.
+Use **Back up library…** to export recordings and annotations before
+removing the app or changing devices. Files exported to another app or
+storage provider follow that provider's settings. See the
+[privacy statement](docs/PRIVACY.md).
 
-| Path | Contents |
+## Development
+
+The mobile interface is written in Flutter; the analysis core is written
+in Rust and connected through `flutter_rust_bridge`. Builds use Flutter
+3.47.0 and Rust, plus Java 17 and the Android SDK for Android, or Xcode and
+CocoaPods for iOS.
+
+From a clone of this repository:
+
+```sh
+cd app
+flutter pub get --enforce-lockfile
+flutter run
+```
+
+The [application README](app/README.md) covers platform setup, tests,
+bridge generation and release signing.
+
+| Directory | Contents |
 |---|---|
-| `app/` | Flutter application for Android and iOS, with a Windows development target |
-| `core/` | Rust DSP algorithms and TextGrid input/output |
-| `cli/` | Command-line access to the core; see [CLI instructions](cli/README.md) |
-| `validation/` | Benchmark generation, public-audio manifest and comparison scripts |
-| `docs/` | User guide, privacy statement and validation report |
+| `app/` | Flutter application and native platform integration |
+| `core/` | Rust signal analysis and TextGrid input/output |
+| `cli/` | [Command-line tools](cli/README.md) for analysis and batch measurements |
+| `validation/` | Test signals, public-audio benchmark and comparison scripts |
+| `docs/` | User guide, validation results and release documentation |
 
-## Architecture
+## Validation
 
-Flutter handles capture, storage, rendering and interaction. Rust handles
-FFT/spectrogram analysis, RMS intensity, YIN F0 tracking, Burg LPC formants
-and TextGrid parsing/serialization through `flutter_rust_bridge`. The
-core uses published algorithm descriptions and documented parameters;
-Praat is used by the separate validation harness to generate comparisons.
+The analysis is compared with Praat 6.1.38 using synthesized signals and a
+public speech corpus. The [validation report](docs/VALIDATION.md) describes
+the data, parameters and error distributions, with
+[machine-readable results](validation/release_report.json) and
+[reproduction instructions](validation/README.md).
+
+Public-speech voicing agreement is 89.48%, below the target of more than
+90%. This metric is reported without failing CI. The comparisons measure
+agreement at the tested settings, not accuracy for every recording or
+parameter choice.
+
+## Licence
+
+The code is licensed under [Apache-2.0](LICENSE). Third-party dependencies
+and the [public benchmark audio](validation/PUBLIC_AUDIO_LICENSES.md) have
+their own licence notices.

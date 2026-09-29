@@ -1,30 +1,27 @@
 # Changelog
 
-## 0.1.0 release candidate 2, build 2
+## 0.1.0-rc.2
 
-Native audio interruptions now update the recording button to **Paused · Stop**
-and stop the elapsed capture clock. The captured portion remains available
-for saving, including when an interruption arrives during startup or a stop
-attempt fails and is retried. Three widget regression tests cover these cases.
+Recording controls now reflect native audio interruptions. The button
+shows **Paused · Stop** and the elapsed timer stops while capture is
+paused. Stop saves the recorded portion, including after an interruption
+during startup or a failed stop attempt that is retried.
 
-## 0.1.0 release candidate 1, build 1
+## 0.1.0-rc.1
 
-The initial release includes local WAV recording and import, waveform and
-spectrogram views, pitch, intensity and formant analysis, TextGrid editing,
-and recording, annotation and measurement export.
+Initial Android release candidate, with WAV recording and import,
+waveform and spectrogram views, pitch, intensity and formant analysis,
+TextGrid editing, and CSV measurement export. iOS source is included.
 
-Release preparation corrected mobile document import and sharing, including
-iPad share-sheet positioning and paired WAV/TextGrid exports. Annotation
-navigation now offers Save, Discard and Cancel. Saves replace TextGrids
-atomically, retain the previous file on failure, and preserve edits made
-while a save is running. Resizing between phone and tablet layouts retains
-the current editor.
+Mobile file handling supports document-provider imports and paired
+WAV/TextGrid sharing, including the iPad share sheet. Leaving an editor
+with unsaved changes offers Save, Discard and Cancel. TextGrid saves are
+atomic, and edits made during a save remain marked as unsaved. The editor
+is retained when the layout changes between phone and tablet sizes.
 
-The mobile library is excluded from system backups. Android production
-builds require a configured release key; unsigned verification builds need
-an explicit opt-in. iOS includes an application privacy manifest.
+The internal library is excluded from system backups. Android release
+builds require signing credentials; iOS includes a privacy manifest.
 
-The numerical validation report is regenerated from synthetic signals and
-verified public speech. Public-speech voicing agreement is 89.48%, below
-the unchanged target above 90%; this metric remains report-only in CI.
-See [the validation report](docs/VALIDATION.md) for all results and scope.
+See the [validation report](docs/VALIDATION.md) for numerical comparisons
+with Praat. Public-speech voicing agreement is 89.48%, below its target of
+more than 90%.

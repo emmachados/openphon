@@ -6,9 +6,9 @@ native library during Flutter builds.
 
 ## Toolchain
 
-The checked configuration uses Flutter 3.47.0, Dart 3.13.0, Rust stable
-(local rustc 1.97.1), Java 17 for Android, and Xcode with CocoaPods for iOS.
-The current generated Android minimum is API 24; the iOS deployment
+Builds use Flutter 3.47.0, Dart 3.13.0, Rust stable, Java 17 for Android,
+and Xcode with CocoaPods for iOS. The release was built with rustc 1.97.1.
+The Android minimum is API 24; the iOS deployment
 minimum is 15.0. Dependency versions are recorded in `pubspec.lock`,
 `ios/Podfile.lock` and the Xcode Swift package lockfiles.
 
@@ -51,25 +51,20 @@ Core and CLI tests run with `cargo test --locked --manifest-path
 ../core/Cargo.toml` and the corresponding `../cli/Cargo.toml` path. See
 [validation instructions](../validation/README.md) for numerical checks.
 
-## Distribution and verification scope
+## Release builds
 
 `.github/workflows/app.yml` checks analysis, Flutter tests, unsigned Android
 production packaging, iOS simulator integration tests and unsigned iOS
 production compilation. The unsigned CI artifacts are verification outputs.
 They cannot be distributed as signed installation packages.
 
-Local verification has passed 137 Flutter tests and nine native integration
-tests on each mobile platform. Native iPad WAV and TextGrid pickers, paired
-sharing, saving to Files, reimport and annotation display have been checked.
-The owner has verified iPhone capture, playback, persistence, interruption
-recovery and microphone permission recovery. Physical Android capture and
-its native picker/share interface still require device checks. See
-[release status](../docs/RELEASE.md) for the build and device used in each check.
+Test results and supported device checks are listed in
+[release status](../docs/RELEASE.md).
 
 ### Android signing
 
 Copy `android/key.properties.example` to a private location outside this
-repository and supply the existing keystore and its credentials. Relative
+repository and supply a release keystore and its credentials. Relative
 keystore paths resolve beside that properties file. Build with:
 
 ```sh
@@ -121,7 +116,7 @@ action can register WAVs copied into the recordings folder manually.
 
 ## Third-party notices
 
-The existing in-app Licences page includes full Rust dependency licence
+The in-app Licences page includes full Rust dependency licence
 texts from `assets/licenses/rust_licenses.json`. Regenerate this asset with
 `python3 ../scripts/generate_rust_licenses.py` after changing the Rust lockfile.
 Conditional normal dependencies across targets are included; Dart and

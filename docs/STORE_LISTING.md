@@ -86,10 +86,8 @@ network service, collection SDK or automatic upload is added.
 
 ## Information still required for submission
 
-Complete age-rating, distribution territories and any required developer
-contact fields in the account owner's store console. Do not publish a
-personal contact address copied from signing credentials. Screenshots
-remain to be supplied before submission. The owner must also choose the
-target age groups and pricing; neither is inferred from the Education
-category or the source-code licence. Apple enrollment is pending. Google
-Play account availability has not yet been confirmed.
+Submission still requires screenshots, an age-rating questionnaire,
+pricing, target age groups, distribution territories and public developer
+contact details. Apple enrollment is pending; Google Play account access
+has not been confirmed. The Education category and source-code licence do
+not determine pricing or target age groups.
