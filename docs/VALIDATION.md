@@ -142,7 +142,10 @@ exception in its exit status. Inspect `all_targets_passed` and `checks`
 in its JSON, not only the process exit code. The saved run used Python
 3.13.15, NumPy 2.5.3 and rustc 1.97.1 on macOS arm64; the JSON records the
 complete environment and source hashes. CI regenerates its own evidence
-on Linux.
+on Linux. The [successful Linux run](https://github.com/emmachados/openphon/actions/runs/36534135577)
+verified the same archive, manifest and partition and passed every enforced
+check. Its public voicing result is 89.48492%; the macOS tables above retain
+the values from their own recorded environment.
 
 Historical research reports are outside the public release source selection.
 Their scores, partitions and causal claims are not used as release evidence.
