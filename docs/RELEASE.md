@@ -71,6 +71,14 @@ or device-transfer exclusions also remain untested. Simulator attribute
 checks establish the backup settings, not the outcome of a device transfer.
 
 Store screenshots, account setup, declarations and submission are pending.
+
+F-Droid reads the listing from `fastlane/metadata/android/en-US/` in this
+repository: title, short and full description, icon and per-build
+changelogs. Inclusion also needs a build recipe submitted to the
+`fdroiddata` repository, which must build the Flutter application and the
+Rust core from source with pinned Flutter and Rust toolchains. No recipe
+has been written or tested, and F-Droid signs its own builds unless
+reproducible-build verification against the release APK is set up.
 The [store listing draft](STORE_LISTING.md) contains the current metadata
 and proposed privacy answers.
 

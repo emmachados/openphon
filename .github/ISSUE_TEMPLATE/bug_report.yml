@@ -1,0 +1,37 @@
+name: Bug report
+description: The application or command line behaves incorrectly or fails.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: openphon version
+      description: Settings > About in the app; for the CLI, the commit it was built from.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Device and operating system
+      placeholder: e.g. Pixel 8, Android 16; iPad Air, iPadOS 26.5; macOS 26 (CLI)
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Files
+      description: >-
+        Attach audio only if you may share it publicly. Do not attach
+        recordings of research participants.

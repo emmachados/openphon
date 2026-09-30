@@ -47,7 +47,9 @@ flutter run
 ```
 
 The [application README](app/README.md) covers platform setup, tests,
-bridge generation and release signing.
+bridge generation and release signing. [CONTRIBUTING.md](CONTRIBUTING.md)
+covers issue reports, required checks and the rules for changes to the
+analysis core.
 
 | Directory | Contents |
 |---|---|

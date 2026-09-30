@@ -1,0 +1,3 @@
+Recording controls reflect native audio interruptions. The button shows
+"Paused · Stop" and the timer stops while capture is paused; Stop saves the
+recorded portion.

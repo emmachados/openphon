@@ -1,0 +1,42 @@
+name: Measurement discrepancy
+description: A value differs from Praat or from a known ground truth.
+labels: [measurement]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: openphon version
+      description: Settings > About in the app; for the CLI, the commit it was built from.
+    validations:
+      required: true
+  - type: dropdown
+    id: measure
+    attributes:
+      label: Measure
+      options: [F0 / voicing, Formants, Intensity, Voice report (HNR, jitter, shimmer), Spectral moments, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: settings
+    attributes:
+      label: Settings on both sides
+      description: >-
+        openphon analysis settings (time step, pitch floor and ceiling,
+        formant ceiling and number), the Praat version and the Praat
+        command and settings used for comparison.
+    validations:
+      required: true
+  - type: textarea
+    id: values
+    attributes:
+      label: Values
+      description: Times and values from both tools, or a CSV excerpt.
+    validations:
+      required: true
+  - type: textarea
+    id: signal
+    attributes:
+      label: Signal
+      description: >-
+        A synthetic signal or a publicly shareable recording that
+        reproduces the difference. Do not attach participant speech.

@@ -1,0 +1,16 @@
+openphon is a phonetics application for Android and iOS. Record mono WAV
+audio or import WAV files, then inspect synchronized waveform and
+spectrogram views. Measure fundamental frequency, intensity and formants,
+adjust analysis settings, correct pitch tracking errors by hand, and
+annotate interval and point tiers.
+
+Import and export Praat TextGrid files, share a recording with its
+annotations, and export measurements as CSV. Analysis runs locally.
+No account is required. Recordings leave the application when you choose
+to export or share them. The library is excluded from automatic system
+backups; export a library backup before removing the app or changing device.
+
+The algorithms and validation procedure are open source. Measurements
+depend on the recording and analysis settings. The published validation
+report describes comparisons with Praat. openphon is not a medical
+diagnostic tool.
