@@ -112,6 +112,8 @@ jobs:
                 break
               fi
               echo "::warning::$test stalled for 15 minutes; retrying"
+              xcrun simctl spawn "$SIMULATOR_ID" log show --last 20m --style compact \
+                > "$RUNNER_TEMP/stall-$(basename "$test" .dart).log" || true
             done
           done
           exit $status
@@ -119,11 +121,13 @@ jobs:
         if: failure()
         run: |
           xcrun simctl spawn "$SIMULATOR_ID" log show --last 90m --style compact \
-            --predicate 'process == "Runner"' > "$RUNNER_TEMP/simulator.log" || true
+            > "$RUNNER_TEMP/stall-failure.log" || true
+      # Stall logs are kept even when the retry passes, to find the cause.
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
-          name: ios-simulator-log
-          path: ${{ runner.temp }}/simulator.log
+          name: ios-simulator-logs
+          path: ${{ runner.temp }}/stall-*.log
+          if-no-files-found: ignore
       - name: Compile the production iOS application
         run: flutter build ios --release --no-codesign --no-pub
