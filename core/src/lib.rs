@@ -6,6 +6,7 @@
 pub mod formant;
 pub mod intensity;
 pub mod pitch;
+pub mod pitch_edits;
 pub mod quality;
 pub mod spectral;
 pub mod voice_quality;

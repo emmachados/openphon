@@ -310,8 +310,32 @@ fn frame_candidates(
     out
 }
 
+/// A pitch track with the voiced candidates the path was chosen from.
+#[derive(Debug)]
+pub struct F0Candidates {
+    pub times_s: Vec<f64>,
+    /// Selected path; 0.0 marks an unvoiced frame.
+    pub f0_hz: Vec<f64>,
+    /// Voiced candidates per frame, cheapest first, at most
+    /// [`MAX_VOICED_CANDIDATES`]. These are the alternatives a manual
+    /// correction chooses among.
+    pub candidates_hz: Vec<Vec<f64>>,
+}
+
+/// Upper bound on [`F0Candidates::candidates_hz`] per frame.
+pub const MAX_VOICED_CANDIDATES: usize = MAX_CANDIDATES;
+
 /// YIN with dynamic-programming path selection over per-frame candidates.
 pub fn track_f0(samples: &[f64], sample_rate: u32, params: &F0Params) -> F0Track {
+    let c = track_f0_candidates(samples, sample_rate, params);
+    F0Track {
+        times_s: c.times_s,
+        f0_hz: c.f0_hz,
+    }
+}
+
+/// [`track_f0`], also returning each frame's voiced candidates.
+pub fn track_f0_candidates(samples: &[f64], sample_rate: u32, params: &F0Params) -> F0Candidates {
     let sr = sample_rate as f64;
     let tau_max = (sr / params.f0_min_hz).ceil() as usize;
     let tau_min = ((sr / params.f0_max_hz).floor() as usize).max(2);
@@ -332,11 +356,22 @@ pub fn track_f0(samples: &[f64], sample_rate: u32, params: &F0Params) -> F0Track
         frames.push(frame_candidates(&dp, tau_min, tau_max, sr, params, unvoiced));
         start += hop;
     }
+    let f0_hz = select_path(&frames, params);
+    let candidates_hz = frames
+        .iter()
+        .map(|f| f.iter().filter(|c| c.f0 > 0.0).map(|c| c.f0).collect())
+        .collect();
+    F0Candidates {
+        times_s,
+        f0_hz,
+        candidates_hz,
+    }
+}
+
+/// Viterbi over the per-frame candidates; returns the chosen F0 per frame.
+fn select_path(frames: &[Vec<Candidate>], params: &F0Params) -> Vec<f64> {
     if frames.is_empty() {
-        return F0Track {
-            times_s,
-            f0_hz: Vec::new(),
-        };
+        return Vec::new();
     }
 
     // Transition costs are calibrated for a 10 ms step; a larger step makes
@@ -381,7 +416,7 @@ pub fn track_f0(samples: &[f64], sample_rate: u32, params: &F0Params) -> F0Track
         f0_hz[i] = frames[i][idx].f0;
         idx = back[i][idx];
     }
-    F0Track { times_s, f0_hz }
+    f0_hz
 }
 
 #[cfg(test)]
@@ -586,6 +621,48 @@ mod tests {
         for f in voiced(&dp) {
             assert!((f - 80.0).abs() < 8.0, "gross error: {f}");
         }
+    }
+
+    #[test]
+    fn candidates_include_the_selected_value() {
+        let x = pulse_train(150.0, 44100.0, 0.5, 0.0);
+        let c = track_f0_candidates(&x, 44100, &Default::default());
+        let t = track_f0(&x, 44100, &Default::default());
+        assert_eq!(c.f0_hz, t.f0_hz);
+        for (f, cands) in c.f0_hz.iter().zip(&c.candidates_hz) {
+            assert!(cands.len() <= MAX_VOICED_CANDIDATES);
+            if *f > 0.0 {
+                assert!(cands.contains(f));
+            }
+        }
+        // A pulse train offers its subharmonic as an alternative.
+        assert!(c.candidates_hz.iter().any(|cs| cs.iter().any(|&f| (f - 75.0).abs() < 2.0)));
+    }
+
+    #[test]
+    fn silence_threshold_unvoices_faint_periodic_frames() {
+        // A loud second followed by the same tone 40 dB down: the faint part
+        // is periodic, but below the silence threshold relative to the peak.
+        let mut x = sine(200.0, 0.5, 44100.0, 1.0);
+        x.extend(sine(200.0, 0.005, 44100.0, 1.0));
+        let on = track_f0(&x, 44100, &Default::default());
+        let off = track_f0(
+            &x,
+            44100,
+            &F0Params {
+                silence_threshold: 0.0,
+                ..Default::default()
+            },
+        );
+        let faint = |t: &F0Track| {
+            t.times_s
+                .iter()
+                .zip(&t.f0_hz)
+                .filter(|(time, f)| **time > 1.1 && **time < 1.9 && **f > 0.0)
+                .count()
+        };
+        assert_eq!(faint(&on), 0);
+        assert!(faint(&off) > 50);
     }
 
     #[test]

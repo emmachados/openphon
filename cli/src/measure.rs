@@ -25,8 +25,16 @@
 //! Batch: when the input is a directory, every *.wav in it with a sibling
 //! TextGrid is measured with the same options; rows gain a leading `file`
 //! column. Files that fail are reported on stderr and skipped.
+//!
+//! Manual pitch corrections: a sibling `<stem>.pitchedits.csv` written by
+//! the app is applied to the F0 track before measuring, and the output
+//! gains a final column counting edited frames (`f0_edited_frames` per
+//! interval, `f0_edited` 0/1 per point). Without such a file the header is
+//! unchanged. Edits made at other pitch settings are an error, because the
+//! app would not apply them either; `--ignore-pitch-edits` measures the
+//! automatic track.
 
-use openphon_core::{formant, intensity, pitch, spectral, textgrid, wav};
+use openphon_core::{formant, intensity, pitch, pitch_edits, spectral, textgrid, wav};
 use std::fmt::Write as _;
 
 use crate::{load_wav, parse_opts, Opts};
@@ -93,6 +101,8 @@ fn containing_interval(tier: &textgrid::IntervalTier, t: f64) -> Option<&textgri
 /// Analysis tracks computed once per file.
 struct Tracks {
     f0: pitch::F0Track,
+    /// Per-frame mask of manually corrected F0 frames, when edits applied.
+    f0_edited: Option<Vec<bool>>,
     int: intensity::IntensityTrack,
     fmn: formant::FormantTrack,
 }
@@ -106,8 +116,32 @@ struct MeasureConfig {
     join: Option<String>,
     rel_tier: Option<String>,
     pitch_params: pitch::F0Params,
+    ignore_pitch_edits: bool,
 }
 
+/// One file's rows, before the optional edited-frames column is appended.
+struct Measured {
+    is_point: bool,
+    rows: Vec<String>,
+    /// Edited-frame count per row; `None` when no edits applied.
+    edited: Option<Vec<usize>>,
+}
+
+impl Measured {
+    /// Rows with the edited-frames column when `with_column`; files without
+    /// edits then contribute 0.
+    fn finish(self, with_column: bool) -> Vec<String> {
+        if !with_column {
+            return self.rows;
+        }
+        let counts = self.edited.unwrap_or_else(|| vec![0; self.rows.len()]);
+        self.rows
+            .into_iter()
+            .zip(counts)
+            .map(|(r, c)| format!("{r},{c}"))
+            .collect()
+    }
+}
 impl MeasureConfig {
     fn from_opts(opts: &Opts) -> Result<MeasureConfig, String> {
         let d = pitch::F0Params::default();
@@ -125,7 +159,20 @@ impl MeasureConfig {
                 f0_max_hz: opts.f64("ceiling", d.f0_max_hz)?,
                 ..d
             },
+            ignore_pitch_edits: opts.has("ignore-pitch-edits"),
         })
+    }
+
+    fn header(&self, is_point: bool, edited: bool) -> String {
+        let mut h = if is_point {
+            self.point_header()
+        } else {
+            self.interval_header()
+        };
+        if edited {
+            h.push_str(if is_point { ",f0_edited" } else { ",f0_edited_frames" });
+        }
+        h
     }
 
     fn interval_header(&self) -> String {
@@ -184,7 +231,7 @@ fn measure_file(
     wav_path: &str,
     grid_path: &str,
     cfg: &MeasureConfig,
-) -> Result<(bool, Vec<String>), String> {
+) -> Result<Measured, String> {
     let tg = textgrid::parse_file(grid_path)?;
 
     enum Chosen<'a> {
@@ -221,16 +268,57 @@ fn measure_file(
     };
 
     let w = load_wav(wav_path)?;
+    let mut f0 = pitch::track_f0(&w.samples, w.sample_rate, &cfg.pitch_params);
+    let edits_path = pitch_edits::sidecar_path(wav_path);
+    let f0_edited = if !cfg.ignore_pitch_edits && std::path::Path::new(&edits_path).exists() {
+        let edits = pitch_edits::PitchEdits::parse_file(&edits_path)?;
+        if !edits.matches(&cfg.pitch_params) {
+            return Err(format!(
+                "{edits_path} was made at time step {} s, floor {} Hz, ceiling {} Hz; \
+                 measure with those settings or pass --ignore-pitch-edits",
+                edits.time_step_s, edits.f0_min_hz, edits.f0_max_hz
+            ));
+        }
+        Some(edits.apply(&mut f0))
+    } else {
+        None
+    };
     let tracks = Tracks {
-        f0: pitch::track_f0(&w.samples, w.sample_rate, &cfg.pitch_params),
+        f0,
+        f0_edited,
         int: intensity::compute(&w.samples, w.sample_rate, &Default::default()),
         fmn: formant::track_formants(&w.samples, w.sample_rate, &Default::default()),
     };
 
-    match chosen {
-        Chosen::Interval(it) => Ok((false, interval_rows(it, &w, &tracks, cfg, join_tier))),
-        Chosen::Point(pt) => Ok((true, point_rows(pt, &tracks, cfg, rel_tier))),
-    }
+    let (is_point, rows, edited) = match chosen {
+        Chosen::Interval(it) => {
+            let (rows, edited) = interval_rows(it, &w, &tracks, cfg, join_tier);
+            (false, rows, edited)
+        }
+        Chosen::Point(pt) => {
+            let (rows, edited) = point_rows(pt, &tracks, cfg, rel_tier);
+            (true, rows, edited)
+        }
+    };
+    Ok(Measured {
+        is_point,
+        rows,
+        edited: tracks.f0_edited.as_ref().map(|_| edited),
+    })
+}
+
+/// Manually corrected frames inside [t0, t1).
+fn edited_in(tracks: &Tracks, t0: f64, t1: f64) -> usize {
+    let Some(mask) = &tracks.f0_edited else {
+        return 0;
+    };
+    tracks
+        .f0
+        .times_s
+        .iter()
+        .zip(mask)
+        .filter(|(t, e)| **e && **t >= t0 && **t < t1)
+        .count()
 }
 
 fn interval_rows(
@@ -239,8 +327,9 @@ fn interval_rows(
     tracks: &Tracks,
     cfg: &MeasureConfig,
     join_tier: Option<&textgrid::IntervalTier>,
-) -> Vec<String> {
+) -> (Vec<String>, Vec<usize>) {
     let mut rows = Vec::new();
+    let mut edited = Vec::new();
     for iv in &tier.intervals {
         if iv.text.is_empty() && !cfg.all {
             continue;
@@ -252,6 +341,7 @@ fn interval_rows(
         } else {
             (iv.xmin, iv.xmax)
         };
+        edited.push(edited_in(tracks, a0, a1));
         let mut voiced = voiced_in(&tracks.f0, a0, a1);
         let mean_f0 = mean(&voiced);
         let median_f0 = median(&mut voiced);
@@ -324,7 +414,7 @@ fn interval_rows(
         }
         rows.push(row);
     }
-    rows
+    (rows, edited)
 }
 
 fn point_rows(
@@ -332,13 +422,19 @@ fn point_rows(
     tracks: &Tracks,
     cfg: &MeasureConfig,
     rel_tier: Option<&textgrid::IntervalTier>,
-) -> Vec<String> {
+) -> (Vec<String>, Vec<usize>) {
     let mut rows = Vec::new();
+    let mut edited = Vec::new();
     for point in &tier.points {
         if point.mark.is_empty() && !cfg.all {
             continue;
         }
-        let f = nearest_idx(&tracks.f0.times_s, point.time).map_or(0.0, |i| tracks.f0.f0_hz[i]);
+        let fi = nearest_idx(&tracks.f0.times_s, point.time);
+        let f = fi.map_or(0.0, |i| tracks.f0.f0_hz[i]);
+        edited.push(match (&tracks.f0_edited, fi) {
+            (Some(mask), Some(i)) => usize::from(mask[i]),
+            _ => 0,
+        });
         let db = nearest_idx(&tracks.int.times_s, point.time).map_or(0.0, |i| tracks.int.db[i]);
         let db = if db.is_finite() { db } else { 0.0 };
         let mut fs = [0.0f64; 3];
@@ -379,7 +475,7 @@ fn point_rows(
         }
         rows.push(row);
     }
-    rows
+    (rows, edited)
 }
 
 pub fn measure_cmd(args: &[String]) -> Result<(), String> {
@@ -388,7 +484,7 @@ pub fn measure_cmd(args: &[String]) -> Result<(), String> {
         &[
             "out", "textgrid", "tier", "step", "floor", "ceiling", "join", "rel-tier",
         ],
-        &["all", "mid50", "contour", "moments"],
+        &["all", "mid50", "contour", "moments", "ignore-pitch-edits"],
     )?;
     let cfg = MeasureConfig::from_opts(&opts)?;
 
@@ -403,15 +499,11 @@ pub fn measure_cmd(args: &[String]) -> Result<(), String> {
             opts.file
         ))?,
     };
-    let (is_point, rows) = measure_file(&opts.file, &grid_path, &cfg)?;
-    let header = if is_point {
-        cfg.point_header()
-    } else {
-        cfg.interval_header()
-    };
-    let mut csv = header;
+    let m = measure_file(&opts.file, &grid_path, &cfg)?;
+    let with_column = m.edited.is_some();
+    let mut csv = cfg.header(m.is_point, with_column);
     csv.push('\n');
-    for r in rows {
+    for r in m.finish(with_column) {
         csv.push_str(&r);
         csv.push('\n');
     }
@@ -438,9 +530,8 @@ fn batch(opts: &Opts, cfg: &MeasureConfig) -> Result<(), String> {
         .collect();
     wavs.sort();
 
-    let mut header: Option<String> = None;
-    let mut out_rows: Vec<String> = Vec::new();
-    let mut measured = 0usize;
+    let mut kind: Option<bool> = None;
+    let mut results: Vec<(String, Measured)> = Vec::new();
     for wav_path in &wavs {
         let wav_str = wav_path.to_string_lossy().to_string();
         let Some(grid_path) = sibling_textgrid(&wav_str) else {
@@ -451,15 +542,10 @@ fn batch(opts: &Opts, cfg: &MeasureConfig) -> Result<(), String> {
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or(wav_str.clone());
         match measure_file(&wav_str, &grid_path, cfg) {
-            Ok((is_point, rows)) => {
-                let h = if is_point {
-                    cfg.point_header()
-                } else {
-                    cfg.interval_header()
-                };
-                match &header {
-                    None => header = Some(h),
-                    Some(prev) if *prev != h => {
+            Ok(m) => {
+                match kind {
+                    None => kind = Some(m.is_point),
+                    Some(prev) if prev != m.is_point => {
                         eprintln!(
                             "skipping {name}: its tier kind produces different \
                              columns than earlier files"
@@ -468,19 +554,19 @@ fn batch(opts: &Opts, cfg: &MeasureConfig) -> Result<(), String> {
                     }
                     Some(_) => {}
                 }
-                for r in rows {
-                    out_rows.push(format!("{},{r}", csv_escape(&name)));
-                }
-                measured += 1;
+                results.push((name, m));
             }
             Err(e) => eprintln!("skipping {name}: {e}"),
         }
     }
-    let header = header.ok_or("no WAV with a sibling TextGrid found in the directory")?;
-    let mut csv = format!("file,{header}\n");
-    for r in out_rows {
-        csv.push_str(&r);
-        csv.push('\n');
+    let is_point = kind.ok_or("no WAV with a sibling TextGrid found in the directory")?;
+    let with_column = results.iter().any(|(_, m)| m.edited.is_some());
+    let mut csv = format!("file,{}\n", cfg.header(is_point, with_column));
+    let measured = results.len();
+    for (name, m) in results {
+        for r in m.finish(with_column) {
+            csv.push_str(&format!("{},{r}\n", csv_escape(&name)));
+        }
     }
     eprintln!("measured {measured} file(s)");
     opts.emit(&csv)
@@ -548,12 +634,16 @@ mod tests {
             join: None,
             rel_tier: None,
             pitch_params: Default::default(),
+            ignore_pitch_edits: false,
         };
         assert_eq!(
             base.interval_header(),
             "tier,label,tmin_s,tmax_s,duration_s,mean_f0_hz,median_f0_hz,\
              f1_mid_hz,f2_mid_hz,f3_mid_hz,mean_intensity_db"
         );
+        assert_eq!(base.header(false, false), base.interval_header());
+        assert!(base.header(false, true).ends_with(",mean_intensity_db,f0_edited_frames"));
+        assert!(base.header(true, true).ends_with(",f3_hz,f0_edited"));
         let full = MeasureConfig {
             contour: true,
             moments: true,
@@ -566,5 +656,21 @@ mod tests {
              cog_hz,spec_sd_hz,skewness,kurtosis,join_label"
         ));
         assert!(full.point_header().ends_with(",rel_label,to_start_s,to_end_s"));
+    }
+
+    #[test]
+    fn rows_gain_the_edited_column_only_when_asked() {
+        let m = || Measured {
+            is_point: false,
+            rows: vec!["a".into(), "b".into()],
+            edited: None,
+        };
+        assert_eq!(m().finish(false), vec!["a", "b"]);
+        assert_eq!(m().finish(true), vec!["a,0", "b,0"]);
+        let e = Measured {
+            edited: Some(vec![3, 0]),
+            ..m()
+        };
+        assert_eq!(e.finish(true), vec!["a,3", "b,0"]);
     }
 }

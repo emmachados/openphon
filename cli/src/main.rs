@@ -41,6 +41,10 @@ Commands:
       [--contour] [--moments]          Naming a point tier with --tier lists
       [--join TIER]                    its points instead: time, F0,
       [--rel-tier TIER]                intensity, F1..F3 at each point.
+      [--ignore-pitch-edits]           A sibling <stem>.pitchedits.csv
+                                       from the app corrects F0 first and
+                                       adds a final edited-frames column;
+                                       --ignore-pitch-edits skips it.
                                        --mid50: aggregate F0/intensity over
                                        the middle 50% of each interval.
                                        --contour: add F0/intensity at
