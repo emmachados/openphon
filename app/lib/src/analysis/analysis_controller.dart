@@ -12,6 +12,7 @@ import '../data/database.dart';
 import '../data/annotation_storage.dart';
 import '../rust/api/core.dart' as rust;
 import 'analysis_settings.dart';
+import 'pitch_edits.dart' as pe;
 import 'spectrogram_image.dart';
 
 /// Visible time range of the synchronized viewport, in seconds.
@@ -100,6 +101,8 @@ class AnalysisController extends ChangeNotifier {
     this.recording, {
     this.onSaveSettings,
     this.writeAnnotation = writeAnnotationAtomically,
+    this.readPitchEdits = pe.readPitchEdits,
+    this.writePitchEdits = pe.writePitchEdits,
     AnalysisSettings? defaultSettings,
   }) : settings = recording.analysisSettingsJson == null
            ? (defaultSettings ?? const AnalysisSettings())
@@ -116,6 +119,10 @@ class AnalysisController extends ChangeNotifier {
     required rust.TextGridData data,
   })
   writeAnnotation;
+
+  final Future<rust.PitchEditsData?> Function(String absWavPath) readPitchEdits;
+  final Future<void> Function(String absWavPath, rust.PitchEditsData? data)
+  writePitchEdits;
 
   AnalysisSettings settings;
 
@@ -159,7 +166,39 @@ class AnalysisController extends ChangeNotifier {
   double get intensityMinPitchHz => settings.intensityMinPitchHz;
   double get trackTimeStepS => settings.trackTimeStepS;
 
+  /// The F0 track every consumer reads: the automatic track with any
+  /// manual corrections applied.
   rust.F0TrackData? f0Track;
+
+  /// Automatic track with each frame's candidates.
+  rust.F0CandidatesData? f0Candidates;
+
+  /// Frames of [f0Track] set by hand; null when no edits apply.
+  List<bool>? f0EditedMask;
+
+  /// Edits at the current pitch settings; null while the track loads or
+  /// while stored edits belong to other settings.
+  pe.PitchEditor? pitchEditor;
+
+  /// Edits read from, or last written to, the sidecar file.
+  rust.PitchEditsData? storedPitchEdits;
+
+  bool pitchEditMode = false;
+
+  /// Last failure writing the sidecar.
+  Object? pitchEditsError;
+
+  /// The sidecar exists but could not be parsed; editing stays off so the
+  /// file is not overwritten unless the user discards it.
+  Object? pitchEditsUnreadable;
+  Future<void> _pitchSave = Future.value();
+
+  /// Stored edits exist but were made at other pitch settings, so they are
+  /// neither shown nor editable until those settings return or the edits
+  /// are discarded.
+  bool get pitchEditsMismatch =>
+      f0Candidates != null && pitchEditor == null && storedPitchEdits != null;
+
   rust.IntensityTrackData? intensityTrack;
   rust.FormantTrackData? formantTrack;
   bool get tracksLoading => _tracksPending > 0;
@@ -198,6 +237,11 @@ class AnalysisController extends ChangeNotifier {
         fallbackDuration: Duration(microseconds: (durationS * 1e6).round()),
       );
       await _loadAnnotation(abs);
+      try {
+        storedPitchEdits = await readPitchEdits(abs);
+      } catch (e) {
+        pitchEditsUnreadable = e;
+      }
     } catch (e) {
       error = e;
     }
@@ -230,14 +274,138 @@ class AnalysisController extends ChangeNotifier {
     final sound = _sound;
     if (sound == null) return Future.value();
     f0Track = null;
+    f0Candidates = null;
+    f0EditedMask = null;
+    pitchEditor = null;
     return _runTrack(() async {
-      final t = await sound.f0(
+      final c = await sound.f0Candidates(
         timeStepS: trackTimeStepS,
         f0MinHz: pitchFloorHz,
         f0MaxHz: pitchCeilingHz,
       );
-      if (!_disposed) f0Track = t;
+      if (_disposed) return;
+      f0Candidates = c;
+      final stored = storedPitchEdits;
+      if (pitchEditsUnreadable != null) {
+        // Leave pitchEditor null: see [pitchEditsUnreadable].
+      } else if (stored == null) {
+        pitchEditor = _emptyPitchEditor(c);
+      } else if (pe.pitchEditsMatch(
+        stored,
+        timeStepS: trackTimeStepS,
+        floorHz: pitchFloorHz,
+        ceilingHz: pitchCeilingHz,
+      )) {
+        pitchEditor = pe.PitchEditor.fromData(c, stored);
+      }
+      _refreshF0();
     });
+  }
+
+  pe.PitchEditor _emptyPitchEditor(rust.F0CandidatesData c) => pe.PitchEditor(
+    c,
+    timeStepS: trackTimeStepS,
+    floorHz: pitchFloorHz,
+    ceilingHz: pitchCeilingHz,
+  );
+
+  void _refreshF0() {
+    final c = f0Candidates;
+    if (c == null) return;
+    final ed = pitchEditor;
+    f0Track = rust.F0TrackData(
+      timesS: c.timesS,
+      f0Hz: ed == null ? c.f0Hz : ed.corrected(),
+    );
+    f0EditedMask = ed == null || ed.isEmpty ? null : ed.editedMask();
+  }
+
+  // ---- manual pitch correction ---------------------------------------------
+
+  void togglePitchEditMode() {
+    pitchEditMode = !pitchEditMode;
+    _notify();
+  }
+
+  bool _pitchOp(bool Function(pe.PitchEditor ed) op) {
+    final ed = pitchEditor;
+    if (ed == null || !op(ed)) return false;
+    _refreshF0();
+    _persistPitchEdits(ed);
+    _notify();
+    return true;
+  }
+
+  void _persistPitchEdits(pe.PitchEditor ed) {
+    final abs = _absolutePath;
+    if (abs == null) return;
+    final data = ed.isEmpty ? null : ed.toData();
+    storedPitchEdits = data;
+    _pitchSave = _pitchSave.then((_) async {
+      try {
+        await writePitchEdits(abs, data);
+        pitchEditsError = null;
+      } catch (e) {
+        pitchEditsError = e;
+      }
+      _notify();
+    });
+  }
+
+  /// Completes when every edit so far has been written.
+  Future<void> get pitchEditsSaved => _pitchSave;
+
+  /// Tap in the pitch plot at time [t] and height [frac] (0 = pitch floor,
+  /// 1 = ceiling): chooses the candidate of the nearest frame closest to
+  /// [frac] within [tolFrac]. Returns false when no candidate is that
+  /// close, so the tap can fall through to the cursor.
+  bool pitchEditTap(double t, double frac, {double tolFrac = 0.04}) {
+    final ed = pitchEditor;
+    if (ed == null) return false;
+    final i = ed.nearestFrame(t);
+    if (i == null) return false;
+    final span = pitchCeilingHz - pitchFloorHz;
+    double? best;
+    var bestD = tolFrac;
+    for (final hz in ed.candidatesAt(i)) {
+      final d = ((hz - pitchFloorHz) / span - frac).abs();
+      if (d <= bestD) {
+        bestD = d;
+        best = hz;
+      }
+    }
+    if (best == null) return false;
+    final hz = best;
+    _pitchOp((ed) => ed.chooseCandidate(i, hz));
+    return true;
+  }
+
+  bool _selectionOp(bool Function(pe.PitchEditor ed, double t0, double t1) op) {
+    final sel = selection;
+    if (sel == null || sel.span <= 0) return false;
+    return _pitchOp((ed) => op(ed, sel.t0, sel.t1));
+  }
+
+  bool pitchOctaveDown() => _selectionOp((ed, a, b) => ed.octave(a, b, 0.5));
+  bool pitchOctaveUp() => _selectionOp((ed, a, b) => ed.octave(a, b, 2));
+  bool pitchUnvoice() => _selectionOp((ed, a, b) => ed.unvoice(a, b));
+  bool pitchVoice() => _selectionOp((ed, a, b) => ed.voice(a, b));
+  bool pitchRevert() => _selectionOp((ed, a, b) => ed.revert(a, b));
+  bool pitchUndo() => _pitchOp((ed) => ed.undo());
+  bool pitchRedo() => _pitchOp((ed) => ed.redo());
+
+  /// Deletes edits stored at other settings and starts afresh at the
+  /// current ones.
+  Future<void> discardStoredPitchEdits() async {
+    final abs = _absolutePath;
+    final c = f0Candidates;
+    if (abs == null || c == null) return;
+    storedPitchEdits = null;
+    pitchEditsUnreadable = null;
+    pitchEditor = _emptyPitchEditor(c);
+    _refreshF0();
+    _notify();
+    await (_pitchSave = _pitchSave.then((_) => writePitchEdits(abs, null)));
   }
 
   Future<void> _loadIntensity() {

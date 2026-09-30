@@ -261,6 +261,14 @@ class TransportBar extends StatelessWidget {
               },
             ),
             IconButton(
+              icon: const Icon(Icons.show_chart),
+              tooltip: l10n.editPitchTooltip,
+              isSelected: controller.pitchEditMode,
+              onPressed: controller.f0Candidates != null
+                  ? controller.togglePitchEditMode
+                  : null,
+            ),
+            IconButton(
               icon: const Icon(Icons.record_voice_over_outlined),
               tooltip: l10n.voiceReportTitle,
               onPressed: controller.isOpen ? onVoiceReport : null,

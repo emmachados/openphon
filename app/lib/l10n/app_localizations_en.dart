@@ -511,4 +511,64 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get close => 'Close';
+
+  @override
+  String get editPitchTooltip => 'Edit pitch';
+
+  @override
+  String get pitchEditHint =>
+      'Tap a candidate to choose it, or select a stretch.';
+
+  @override
+  String pitchEditedFrames(int count) {
+    return '$count edited frame(s)';
+  }
+
+  @override
+  String get octaveDownTooltip => 'Octave down (selection)';
+
+  @override
+  String get octaveUpTooltip => 'Octave up (selection)';
+
+  @override
+  String get unvoiceTooltip => 'Set unvoiced (selection)';
+
+  @override
+  String get voiceTooltip => 'Set voiced (selection)';
+
+  @override
+  String get revertPitchTooltip => 'Revert to automatic (selection)';
+
+  @override
+  String get exitPitchEditTooltip => 'Stop editing pitch';
+
+  @override
+  String pitchEditsOtherSettings(String step, String floor, String ceiling) {
+    return 'Pitch edits were made at time step $step s, floor $floor Hz, ceiling $ceiling Hz. Restore those settings to use them, or discard them.';
+  }
+
+  @override
+  String pitchEditsUnreadable(String error) {
+    return 'The pitch edits file could not be read: $error';
+  }
+
+  @override
+  String pitchEditsSaveFailed(String error) {
+    return 'Pitch edits could not be saved: $error';
+  }
+
+  @override
+  String get discardPitchEdits => 'Discard edits';
+
+  @override
+  String get discardPitchEditsTitle => 'Discard pitch edits?';
+
+  @override
+  String get discardPitchEditsBody =>
+      'The stored corrections for this recording will be deleted.';
+
+  @override
+  String skippedPitchEditMismatch(int count) {
+    return '$count recording(s) skipped: their pitch edits were made at non-default pitch settings';
+  }
 }

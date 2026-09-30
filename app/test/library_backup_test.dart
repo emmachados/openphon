@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openphon/src/audio/recorder_service.dart'
-    show sanitizeFileName;
+import 'package:openphon/src/audio/recorder_service.dart' show sanitizeFileName;
 import 'package:openphon/src/data/database.dart';
 import 'package:openphon/src/data/library_backup.dart';
 
@@ -19,9 +18,9 @@ Recording _rec(int id, String name, {int? durationMs, int sampleRate = 44100}) {
 void main() {
   test('stems come from display names, sanitized and deduped', () {
     final items = planBackup([
-      (_rec(1, 'Take 23:49'), '/a/f1.wav', null),
-      (_rec(2, 'Take 23:49'), '/a/f2.wav', '/a/f2.TextGrid'),
-      (_rec(3, ''), '/a/f3.wav', null),
+      (_rec(1, 'Take 23:49'), '/a/f1.wav', null, null),
+      (_rec(2, 'Take 23:49'), '/a/f2.wav', '/a/f2.TextGrid', null),
+      (_rec(3, ''), '/a/f3.wav', null, null),
     ], sanitizeFileName);
     expect(items[0].stem, isNot(contains(':')));
     expect(items[1].stem, endsWith(' (2)'));
@@ -31,23 +30,31 @@ void main() {
 
   test('manifest lists files, format facts, and escapes commas', () {
     final items = planBackup([
-      (_rec(1, 'clean, with comma', durationMs: 6720), '/a/f1.wav',
-          '/a/f1.TextGrid'),
-      (_rec(2, 'plain', sampleRate: 16000), '/a/f2.wav', null),
+      (
+        _rec(1, 'clean, with comma', durationMs: 6720),
+        '/a/f1.wav',
+        '/a/f1.TextGrid',
+        '/a/f1.pitchedits.csv',
+      ),
+      (_rec(2, 'plain', sampleRate: 16000), '/a/f2.wav', null, null),
     ], sanitizeFileName);
-    final csv = backupManifestCsv(items, (path) => path.endsWith('f1.wav')
-        ? 1234
-        : 99);
+    final csv = backupManifestCsv(
+      items,
+      (path) => path.endsWith('f1.wav') ? 1234 : 99,
+    );
     final lines = csv.trim().split('\n');
     expect(
       lines[0],
-      'name,file,textgrid,sample_rate_hz,channels,duration_s,size_bytes,created',
+      'name,file,textgrid,sample_rate_hz,channels,duration_s,size_bytes,created,'
+      'pitch_edits',
     );
     expect(lines[1], contains('"clean, with comma"'));
     expect(lines[1], contains('.TextGrid'));
     expect(lines[1], contains(',6.720,'));
     expect(lines[1], contains(',1234,'));
     expect(lines[1], contains('2026-07-19T12:30:00.000Z'));
+    expect(lines[1], endsWith(',"clean, with comma.pitchedits.csv"'));
+    expect(lines[2], endsWith('Z,'));
     // No TextGrid and no duration: empty fields, not crashes.
     expect(lines[2], contains('plain.wav,,16000,1,,99,'));
   });

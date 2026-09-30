@@ -41,6 +41,8 @@ class _TrackPainter extends CustomPainter {
   _TrackPainter(this.c, this.view)
     : viewport = c.viewport,
       f0 = c.f0Track,
+      edited = c.f0EditedMask,
+      candidates = c.pitchEditMode ? c.f0Candidates : null,
       intensity = c.intensityTrack,
       formants = c.formantTrack,
       maxFreqHz = c.sgMaxFreqHz,
@@ -51,6 +53,8 @@ class _TrackPainter extends CustomPainter {
   final ViewPrefs view;
   final TimeViewport viewport;
   final rust.F0TrackData? f0;
+  final List<bool>? edited;
+  final rust.F0CandidatesData? candidates;
   final rust.IntensityTrackData? intensity;
   final rust.FormantTrackData? formants;
   final double maxFreqHz;
@@ -73,7 +77,11 @@ class _TrackPainter extends CustomPainter {
     canvas.clipRect(plot);
     if (view.showFormants) _paintFormants(canvas, plot);
     if (view.showIntensity) _paintIntensity(canvas, plot);
-    if (view.showPitch) _paintF0(canvas, plot);
+    if (view.showPitch || candidates != null) {
+      _paintCandidates(canvas, plot);
+      _paintF0(canvas, plot);
+      _paintEdited(canvas, plot);
+    }
     canvas.restore();
     if (view.showPitch) _paintF0Axis(canvas, plot);
   }
@@ -109,6 +117,73 @@ class _TrackPainter extends CustomPainter {
       }
     }
     if (path != null) canvas.drawPath(path, paint);
+  }
+
+  double _pitchY(double hz, Rect plot) =>
+      plot.bottom -
+      ((hz - pitchFloorHz) / (pitchCeilingHz - pitchFloorHz)).clamp(0.0, 1.0) *
+          plot.height;
+
+  /// Edit mode: every frame's voiced candidates as hollow rings, once the
+  /// zoom leaves at least 3 px between frames.
+  void _paintCandidates(Canvas canvas, Rect plot) {
+    final cands = candidates;
+    if (cands == null || cands.timesS.length < 2) return;
+    final dt = cands.timesS[1] - cands.timesS[0];
+    if (dt / viewport.span * plot.width < 3) return;
+    final paint = Paint()
+      ..color = _f0Color.withValues(alpha: 0.55)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    final k = cands.maxCandidates;
+    for (var i = 0; i < cands.timesS.length; i++) {
+      final t = cands.timesS[i];
+      if (t < viewport.t0 || t > viewport.t1) continue;
+      final x = plot.left + timeToX(t, viewport, plot.width);
+      for (var j = 0; j < k; j++) {
+        final hz = cands.candidatesHz[i * k + j];
+        if (hz <= 0) continue;
+        canvas.drawCircle(
+          Offset(x, _pitchY(hz, plot)),
+          3 * view.markScale,
+          paint,
+        );
+      }
+    }
+  }
+
+  /// Hand-corrected frames: a filled square on voiced ones, a cross at the
+  /// floor on frames set to unvoiced.
+  void _paintEdited(Canvas canvas, Rect plot) {
+    final track = f0;
+    final mask = edited;
+    if (track == null || mask == null) return;
+    final fill = Paint()..color = _f0Color;
+    final cross = Paint()
+      ..color = _f0Color
+      ..strokeWidth = 1.5;
+    final r = 2.5 * view.markScale;
+    for (var i = 0; i < track.timesS.length && i < mask.length; i++) {
+      if (!mask[i]) continue;
+      final t = track.timesS[i];
+      if (t < viewport.t0 || t > viewport.t1) continue;
+      final x = plot.left + timeToX(t, viewport, plot.width);
+      final hz = track.f0Hz[i];
+      if (hz > 0) {
+        canvas.drawRect(
+          Rect.fromCenter(
+            center: Offset(x, _pitchY(hz, plot)),
+            width: 2 * r,
+            height: 2 * r,
+          ),
+          fill,
+        );
+      } else {
+        final y = plot.bottom - r - 1;
+        canvas.drawLine(Offset(x - r, y - r), Offset(x + r, y + r), cross);
+        canvas.drawLine(Offset(x - r, y + r), Offset(x + r, y - r), cross);
+      }
+    }
   }
 
   void _paintIntensity(Canvas canvas, Rect plot) {
@@ -182,6 +257,8 @@ class _TrackPainter extends CustomPainter {
   bool shouldRepaint(_TrackPainter old) =>
       old.viewport != viewport ||
       old.f0 != f0 ||
+      old.edited != edited ||
+      old.candidates != candidates ||
       old.intensity != intensity ||
       old.formants != formants ||
       old.maxFreqHz != maxFreqHz ||

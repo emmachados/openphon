@@ -14,6 +14,7 @@ import '../../l10n/app_localizations.dart';
 import '../analysis/analysis_controller.dart';
 import '../analysis/analysis_settings.dart';
 import '../analysis/measurements.dart';
+import '../analysis/pitch_edits.dart';
 import '../annotation/annotation_model.dart';
 import '../audio/recorder_service.dart';
 import '../audio/wav_math.dart';
@@ -364,6 +365,7 @@ class _HomePageState extends State<HomePage> {
       ),
     );
     final files = <FileMeasures>[];
+    var skippedEdits = 0;
     try {
       const s = AnalysisSettings();
       for (var i = 0; i < recordings.length; i++) {
@@ -378,14 +380,34 @@ class _HomePageState extends State<HomePage> {
           );
           final tier = doc.tiers.whereType<IntervalTierModel>().firstOrNull;
           if (tier == null) continue;
+          var f0 = await rust_core.f0Track(
+            path: abs,
+            timeStepS: s.trackTimeStepS,
+            f0MinHz: s.pitchFloorHz,
+            f0MaxHz: s.pitchCeilingHz,
+          );
+          // Pitch edits apply as in the CLI; edits made at other settings
+          // exclude the recording, as the CLI refuses them.
+          List<bool>? edited;
+          final edits = await readPitchEdits(abs);
+          if (edits != null) {
+            if (!pitchEditsMatch(
+              edits,
+              timeStepS: s.trackTimeStepS,
+              floorHz: s.pitchFloorHz,
+              ceilingHz: s.pitchCeilingHz,
+            )) {
+              skippedEdits++;
+              continue;
+            }
+            final applied = applyPitchEdits(f0, edits);
+            f0 = applied.track;
+            edited = applied.edited;
+          }
           final rows = measureIntervals(
             tier,
-            f0: await rust_core.f0Track(
-              path: abs,
-              timeStepS: s.trackTimeStepS,
-              f0MinHz: s.pitchFloorHz,
-              f0MaxHz: s.pitchCeilingHz,
-            ),
+            f0: f0,
+            f0Edited: edited,
             intensity: await rust_core.intensityTrack(
               path: abs,
               timeStepS: s.trackTimeStepS,
@@ -404,6 +426,7 @@ class _HomePageState extends State<HomePage> {
               file: sanitizeFileName(r.name),
               tierName: tier.name,
               rows: rows,
+              pitchEdited: edited != null,
             ),
           );
         } catch (_) {
@@ -414,8 +437,9 @@ class _HomePageState extends State<HomePage> {
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
     }
     if (!mounted) return;
+    if (skippedEdits > 0) _snack(l10n.skippedPitchEditMismatch(skippedEdits));
     if (files.isEmpty) {
-      _snack(l10n.noAnnotatedRecordings);
+      if (skippedEdits == 0) _snack(l10n.noAnnotatedRecordings);
       return;
     }
     final csv = batchMeasurementsCsv(files);
@@ -446,8 +470,9 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  /// Copies every recording (WAV + sibling TextGrid) plus a manifest.csv
-  /// out of app-private storage, which uninstalling the app erases.
+  /// Copies every recording (WAV, sibling TextGrid, pitch edits) plus a
+  /// manifest.csv out of app-private storage, which uninstalling the app
+  /// erases.
   /// Desktop: into a picked directory. Mobile: dart:io cannot write into
   /// SAF tree URIs, so all files go through one multi-file share instead
   /// (fine for dozens of recordings; Android intent size limits would
@@ -459,11 +484,12 @@ class _HomePageState extends State<HomePage> {
       _snack(l10n.libraryEmpty);
       return;
     }
-    final rows = <(Recording, String, String?)>[];
+    final rows = <(Recording, String, String?, String?)>[];
     for (final r in recordings) {
       final abs = await toAbsolutePath(r.relativePath);
       final grid = await findSiblingTextGrid(abs);
-      rows.add((r, abs, grid?.path));
+      final edits = rust_core.pitchEditsPath(wavPath: abs);
+      rows.add((r, abs, grid?.path, await File(edits).exists() ? edits : null));
     }
     final items = planBackup(rows, sanitizeFileName);
     int sizeOf(String path) {
@@ -489,6 +515,12 @@ class _HomePageState extends State<HomePage> {
             await File(grid).copy(gridDest);
             files.add(XFile(gridDest, mimeType: 'text/plain'));
           }
+          final edits = it.editsPath;
+          if (edits != null) {
+            final editsDest = p.join(tmp.path, '${it.stem}.pitchedits.csv');
+            await File(edits).copy(editsDest);
+            files.add(XFile(editsDest, mimeType: 'text/csv'));
+          }
         }
         final manifestPath = p.join(tmp.path, 'manifest.csv');
         await File(manifestPath).writeAsString(manifest);
@@ -504,6 +536,10 @@ class _HomePageState extends State<HomePage> {
         final grid = it.gridPath;
         if (grid != null) {
           await File(grid).copy(p.join(dirPath, '${it.stem}.TextGrid'));
+        }
+        final edits = it.editsPath;
+        if (edits != null) {
+          await File(edits).copy(p.join(dirPath, '${it.stem}.pitchedits.csv'));
         }
       }
       await File(p.join(dirPath, 'manifest.csv')).writeAsString(manifest);
@@ -707,6 +743,7 @@ class _HomePageState extends State<HomePage> {
     if (await file.exists()) await file.delete();
     final grid = await findSiblingTextGrid(abs);
     if (grid != null) await grid.delete();
+    await writePitchEdits(abs, null);
     await widget.db.deleteRecording(r.id);
     if (mounted) {
       setState(() {

@@ -20,6 +20,7 @@ import '../../data/app_prefs.dart';
 import '../../data/database.dart';
 import '../../data/file_exchange.dart';
 import 'overlay_painter.dart';
+import 'pitch_edit_bar.dart';
 import 'readout_panel.dart';
 import 'settings_sheet.dart';
 import 'spectrogram_view.dart';
@@ -259,9 +260,11 @@ class AnalysisViewState extends State<AnalysisView> {
       _snack(l10n.noIntervalTier);
       return;
     }
+    final edited = _controller.f0EditedMask;
     final rows = measureIntervals(
       tier,
       f0: _controller.f0Track,
+      f0Edited: edited,
       intensity: _controller.intensityTrack,
       formants: _controller.formantTrack,
     );
@@ -274,7 +277,9 @@ class AnalysisViewState extends State<AnalysisView> {
       try {
         final dir = await exportDirectory();
         final path = '${dir.path}/${stem}_measures.csv';
-        await File(path).writeAsString(measurementsCsv(tier.name, rows));
+        await File(path).writeAsString(
+          measurementsCsv(tier.name, rows, editedColumn: edited != null),
+        );
         await _shareFile(path, 'text/csv');
       } catch (e) {
         _snack(l10n.exportFailed('$e'));
@@ -288,7 +293,9 @@ class AnalysisViewState extends State<AnalysisView> {
     );
     if (location == null || !mounted) return;
     try {
-      await File(location.path).writeAsString(measurementsCsv(tier.name, rows));
+      await File(location.path).writeAsString(
+        measurementsCsv(tier.name, rows, editedColumn: edited != null),
+      );
       _snack(l10n.measurementsExported(rows.length));
     } catch (e) {
       _snack(l10n.exportFailed('$e'));
@@ -417,12 +424,19 @@ class AnalysisViewState extends State<AnalysisView> {
             // Praat-like: Enter inserts a boundary/point at the cursor on
             // the active tier, Delete removes the selected boundary/point.
             bool handled;
+            // In pitch edit mode, undo and redo act on the pitch edits.
+            final pitch = _controller.pitchEditMode;
             if (ctrl && key == LogicalKeyboardKey.keyZ) {
-              handled = shift
-                  ? _controller.annotationRedo()
-                  : _controller.annotationUndo();
+              handled = switch ((pitch, shift)) {
+                (true, true) => _controller.pitchRedo(),
+                (true, false) => _controller.pitchUndo(),
+                (false, true) => _controller.annotationRedo(),
+                (false, false) => _controller.annotationUndo(),
+              };
             } else if (ctrl && key == LogicalKeyboardKey.keyY) {
-              handled = _controller.annotationRedo();
+              handled = pitch
+                  ? _controller.pitchRedo()
+                  : _controller.annotationRedo();
             } else if (key == LogicalKeyboardKey.enter ||
                 key == LogicalKeyboardKey.numpadEnter) {
               handled = _controller.annotationInsertAtCursor();
@@ -451,6 +465,8 @@ class AnalysisViewState extends State<AnalysisView> {
               const Divider(height: 1),
               ReadoutPanel(controller: _controller),
               const Divider(height: 1),
+              if (_controller.pitchEditMode)
+                PitchEditBar(controller: _controller),
               TransportBar(
                 controller: _controller,
                 prefs: widget.prefs,
@@ -519,6 +535,22 @@ class _ViewportAreaState extends State<_ViewportArea> {
     return frac * c.sgMaxFreqHz;
   }
 
+  /// In pitch edit mode, a tap near a candidate chooses it; returns
+  /// whether the tap was consumed.
+  bool _pitchTap(double dx, double dy, double plotWidth) {
+    if (!c.pitchEditMode) return false;
+    final plotHeight = _lastSize.height - kSpectrogramTop - kTimeAxisHeight;
+    if (dy < kSpectrogramTop || plotHeight <= 0) return false;
+    final frac = 1 - (dy - kSpectrogramTop) / plotHeight;
+    if (frac < 0) return false;
+    final slop = selectionEdgeSlopFor(_lastPointerKind);
+    return c.pitchEditTap(
+      _xToT(dx, plotWidth),
+      frac,
+      tolFrac: slop / plotHeight,
+    );
+  }
+
   /// Selection-edge hit test with ±12 px slop; decides the drag mode.
   _DragMode _modeFor(double dx, double plotWidth) {
     final sel = c.selection;
@@ -558,10 +590,11 @@ class _ViewportAreaState extends State<_ViewportArea> {
             },
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTapUp: (d) => c.setCursor(
-                _xToT(d.localPosition.dx, plotWidth),
-                freqHz: _yToFreq(d.localPosition.dy),
-              ),
+              onTapUp: (d) {
+                final pos = d.localPosition;
+                if (_pitchTap(pos.dx, pos.dy, plotWidth)) return;
+                c.setCursor(_xToT(pos.dx, plotWidth), freqHz: _yToFreq(pos.dy));
+              },
               onDoubleTap: c.zoomToFit,
               onScaleStart: (d) {
                 _scaleStartSpan = c.viewport.span;

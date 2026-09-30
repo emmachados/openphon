@@ -975,6 +975,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Close'**
   String get close;
+
+  /// No description provided for @editPitchTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit pitch'**
+  String get editPitchTooltip;
+
+  /// No description provided for @pitchEditHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a candidate to choose it, or select a stretch.'**
+  String get pitchEditHint;
+
+  /// No description provided for @pitchEditedFrames.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} edited frame(s)'**
+  String pitchEditedFrames(int count);
+
+  /// No description provided for @octaveDownTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Octave down (selection)'**
+  String get octaveDownTooltip;
+
+  /// No description provided for @octaveUpTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Octave up (selection)'**
+  String get octaveUpTooltip;
+
+  /// No description provided for @unvoiceTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Set unvoiced (selection)'**
+  String get unvoiceTooltip;
+
+  /// No description provided for @voiceTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Set voiced (selection)'**
+  String get voiceTooltip;
+
+  /// No description provided for @revertPitchTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Revert to automatic (selection)'**
+  String get revertPitchTooltip;
+
+  /// No description provided for @exitPitchEditTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop editing pitch'**
+  String get exitPitchEditTooltip;
+
+  /// No description provided for @pitchEditsOtherSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Pitch edits were made at time step {step} s, floor {floor} Hz, ceiling {ceiling} Hz. Restore those settings to use them, or discard them.'**
+  String pitchEditsOtherSettings(String step, String floor, String ceiling);
+
+  /// No description provided for @pitchEditsUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'The pitch edits file could not be read: {error}'**
+  String pitchEditsUnreadable(String error);
+
+  /// No description provided for @pitchEditsSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Pitch edits could not be saved: {error}'**
+  String pitchEditsSaveFailed(String error);
+
+  /// No description provided for @discardPitchEdits.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard edits'**
+  String get discardPitchEdits;
+
+  /// No description provided for @discardPitchEditsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard pitch edits?'**
+  String get discardPitchEditsTitle;
+
+  /// No description provided for @discardPitchEditsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The stored corrections for this recording will be deleted.'**
+  String get discardPitchEditsBody;
+
+  /// No description provided for @skippedPitchEditMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} recording(s) skipped: their pitch edits were made at non-default pitch settings'**
+  String skippedPitchEditMismatch(int count);
 }
 
 class _AppLocalizationsDelegate

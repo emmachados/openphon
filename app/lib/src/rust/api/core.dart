@@ -41,6 +41,15 @@ Future<F0TrackData> f0Track({
   f0MaxHz: f0MaxHz,
 );
 
+String pitchEditsPath({required String wavPath}) =>
+    RustLib.instance.api.crateApiCorePitchEditsPath(wavPath: wavPath);
+
+PitchEditsData parsePitchEdits({required String text}) =>
+    RustLib.instance.api.crateApiCoreParsePitchEdits(text: text);
+
+String formatPitchEdits({required PitchEditsData data}) =>
+    RustLib.instance.api.crateApiCoreFormatPitchEdits(data: data);
+
 Future<IntensityTrackData> intensityTrack({
   required String path,
   required double timeStepS,
@@ -111,6 +120,12 @@ abstract class Sound implements RustOpaqueInterface {
     required double f0MaxHz,
   });
 
+  Future<F0CandidatesData> f0Candidates({
+    required double timeStepS,
+    required double f0MinHz,
+    required double f0MaxHz,
+  });
+
   Future<FormantTrackData> formants({
     required double timeStepS,
     required int maxFormants,
@@ -145,6 +160,42 @@ abstract class Sound implements RustOpaqueInterface {
     required double f0MinHz,
     required double f0MaxHz,
   });
+}
+
+/// F0 path plus each frame's voiced candidates, for manual correction.
+class F0CandidatesData {
+  final Float64List timesS;
+
+  /// Selected path; 0.0 marks an unvoiced frame.
+  final Float64List f0Hz;
+
+  /// Row-major, `max_candidates` per frame, cheapest first; 0.0 pads.
+  final Float64List candidatesHz;
+  final int maxCandidates;
+
+  const F0CandidatesData({
+    required this.timesS,
+    required this.f0Hz,
+    required this.candidatesHz,
+    required this.maxCandidates,
+  });
+
+  @override
+  int get hashCode =>
+      timesS.hashCode ^
+      f0Hz.hashCode ^
+      candidatesHz.hashCode ^
+      maxCandidates.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is F0CandidatesData &&
+          runtimeType == other.runtimeType &&
+          timesS == other.timesS &&
+          f0Hz == other.f0Hz &&
+          candidatesHz == other.candidatesHz &&
+          maxCandidates == other.maxCandidates;
 }
 
 class F0TrackData {
@@ -218,6 +269,44 @@ class IntensityTrackData {
           runtimeType == other.runtimeType &&
           timesS == other.timesS &&
           db == other.db;
+}
+
+/// Manual F0 corrections as stored in `<stem>.pitchedits.csv`.
+class PitchEditsData {
+  final double timeStepS;
+  final double f0MinHz;
+  final double f0MaxHz;
+  final Float64List timesS;
+
+  /// 0.0 marks a frame set to unvoiced.
+  final Float64List f0Hz;
+
+  const PitchEditsData({
+    required this.timeStepS,
+    required this.f0MinHz,
+    required this.f0MaxHz,
+    required this.timesS,
+    required this.f0Hz,
+  });
+
+  @override
+  int get hashCode =>
+      timeStepS.hashCode ^
+      f0MinHz.hashCode ^
+      f0MaxHz.hashCode ^
+      timesS.hashCode ^
+      f0Hz.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PitchEditsData &&
+          runtimeType == other.runtimeType &&
+          timeStepS == other.timeStepS &&
+          f0MinHz == other.f0MinHz &&
+          f0MaxHz == other.f0MaxHz &&
+          timesS == other.timesS &&
+          f0Hz == other.f0Hz;
 }
 
 class QualityData {

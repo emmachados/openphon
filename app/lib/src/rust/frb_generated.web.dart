@@ -51,7 +51,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_box_autoadd_f_64(dynamic raw);
 
   @protected
+  PitchEditsData dco_decode_box_autoadd_pitch_edits_data(dynamic raw);
+
+  @protected
   TextGridData dco_decode_box_autoadd_text_grid_data(dynamic raw);
+
+  @protected
+  F0CandidatesData dco_decode_f_0_candidates_data(dynamic raw);
 
   @protected
   F0TrackData dco_decode_f_0_track_data(dynamic raw);
@@ -85,6 +91,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
+
+  @protected
+  PitchEditsData dco_decode_pitch_edits_data(dynamic raw);
 
   @protected
   QualityData dco_decode_quality_data(dynamic raw);
@@ -153,9 +162,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  PitchEditsData sse_decode_box_autoadd_pitch_edits_data(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   TextGridData sse_decode_box_autoadd_text_grid_data(
     SseDeserializer deserializer,
   );
+
+  @protected
+  F0CandidatesData sse_decode_f_0_candidates_data(SseDeserializer deserializer);
 
   @protected
   F0TrackData sse_decode_f_0_track_data(SseDeserializer deserializer);
@@ -193,6 +210,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
+
+  @protected
+  PitchEditsData sse_decode_pitch_edits_data(SseDeserializer deserializer);
 
   @protected
   QualityData sse_decode_quality_data(SseDeserializer deserializer);
@@ -267,8 +287,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_pitch_edits_data(
+    PitchEditsData self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_text_grid_data(
     TextGridData self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_f_0_candidates_data(
+    F0CandidatesData self,
     SseSerializer serializer,
   );
 
@@ -322,6 +354,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pitch_edits_data(
+    PitchEditsData self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_quality_data(QualityData self, SseSerializer serializer);

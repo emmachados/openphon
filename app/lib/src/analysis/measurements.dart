@@ -4,7 +4,9 @@ import '../rust/api/core.dart' as rust;
 /// Per-interval measurement recipe, the in-app twin of the CLI's
 /// `openphon measure`: duration, mean/median F0 over voiced frames, F1–F3
 /// at the interval midpoint, mean intensity. 0 marks "no voiced frames" /
-/// "no formant value", matching the track CSVs and the CLI.
+/// "no formant value", matching the track CSVs and the CLI. When manual
+/// pitch edits apply, a final `f0_edited_frames` column counts the edited
+/// frames in each interval, as the CLI does.
 class IntervalMeasure {
   const IntervalMeasure({
     required this.label,
@@ -14,6 +16,7 @@ class IntervalMeasure {
     required this.medianF0Hz,
     required this.fMidHz,
     required this.meanIntensityDb,
+    this.f0EditedFrames = 0,
   });
 
   final String label;
@@ -26,12 +29,16 @@ class IntervalMeasure {
   final List<double> fMidHz;
   final double meanIntensityDb;
 
+  /// Manually corrected F0 frames inside the interval.
+  final int f0EditedFrames;
+
   double get durationS => tmaxS - tminS;
 }
 
 List<IntervalMeasure> measureIntervals(
   IntervalTierModel tier, {
   rust.F0TrackData? f0,
+  List<bool>? f0Edited,
   rust.IntensityTrackData? intensity,
   rust.FormantTrackData? formants,
   bool includeEmpty = false,
@@ -41,12 +48,13 @@ List<IntervalMeasure> measureIntervals(
     if (iv.text.isEmpty && !includeEmpty) continue;
 
     final voiced = <double>[];
+    var edited = 0;
     if (f0 != null) {
       for (var i = 0; i < f0.timesS.length; i++) {
         final t = f0.timesS[i];
-        if (t >= iv.xmin && t < iv.xmax && f0.f0Hz[i] > 0) {
-          voiced.add(f0.f0Hz[i]);
-        }
+        if (t < iv.xmin || t >= iv.xmax) continue;
+        if (f0.f0Hz[i] > 0) voiced.add(f0.f0Hz[i]);
+        if (f0Edited != null && i < f0Edited.length && f0Edited[i]) edited++;
       }
     }
     var meanF0 = 0.0;
@@ -97,6 +105,7 @@ List<IntervalMeasure> measureIntervals(
         medianF0Hz: medianF0,
         fMidHz: fMid,
         meanIntensityDb: meanDb,
+        f0EditedFrames: edited,
       ),
     );
   }
@@ -114,22 +123,28 @@ class FileMeasures {
     required this.file,
     required this.tierName,
     required this.rows,
+    this.pitchEdited = false,
   });
 
   final String file;
   final String tierName;
   final List<IntervalMeasure> rows;
+
+  /// Whether manual pitch edits were applied to this recording.
+  final bool pitchEdited;
 }
 
 /// Library-wide batch CSV: the same columns as [measurementsCsv] with a
 /// leading `file` column, matching the CLI's directory-input mode.
 String batchMeasurementsCsv(List<FileMeasures> files) {
+  final edited = files.any((f) => f.pitchEdited);
   final b = StringBuffer(
     'file,tier,label,tmin_s,tmax_s,duration_s,mean_f0_hz,median_f0_hz,'
-    'f1_mid_hz,f2_mid_hz,f3_mid_hz,mean_intensity_db\n',
+    'f1_mid_hz,f2_mid_hz,f3_mid_hz,mean_intensity_db'
+    '${edited ? ',f0_edited_frames' : ''}\n',
   );
   for (final f in files) {
-    final single = measurementsCsv(f.tierName, f.rows);
+    final single = measurementsCsv(f.tierName, f.rows, editedColumn: edited);
     for (final line in single.split('\n').skip(1)) {
       if (line.isEmpty) continue;
       b.writeln('${_csvEscape(f.file)},$line');
@@ -138,11 +153,18 @@ String batchMeasurementsCsv(List<FileMeasures> files) {
   return b.toString();
 }
 
-/// Same header and formatting as the CLI's `measure` output.
-String measurementsCsv(String tierName, List<IntervalMeasure> rows) {
+/// Same header and formatting as the CLI's `measure` output;
+/// [editedColumn] adds `f0_edited_frames`, which the CLI writes when a
+/// pitch edits file applies.
+String measurementsCsv(
+  String tierName,
+  List<IntervalMeasure> rows, {
+  bool editedColumn = false,
+}) {
   final b = StringBuffer(
     'tier,label,tmin_s,tmax_s,duration_s,mean_f0_hz,median_f0_hz,'
-    'f1_mid_hz,f2_mid_hz,f3_mid_hz,mean_intensity_db\n',
+    'f1_mid_hz,f2_mid_hz,f3_mid_hz,mean_intensity_db'
+    '${editedColumn ? ',f0_edited_frames' : ''}\n',
   );
   for (final m in rows) {
     b.writeln(
@@ -158,6 +180,7 @@ String measurementsCsv(String tierName, List<IntervalMeasure> rows) {
         m.fMidHz[1].toStringAsFixed(3),
         m.fMidHz[2].toStringAsFixed(3),
         m.meanIntensityDb.toStringAsFixed(3),
+        if (editedColumn) '${m.f0EditedFrames}',
       ].join(','),
     );
   }

@@ -4,7 +4,8 @@
 //! long file never blocks the Dart UI isolate.
 
 use openphon_core::{
-    formant, intensity, pitch, quality, spectrogram, textgrid, voice_quality, wav, waveform,
+    formant, intensity, pitch, pitch_edits, quality, spectrogram, textgrid, voice_quality, wav,
+    waveform,
 };
 
 #[flutter_rust_bridge::frb(sync)]
@@ -125,6 +126,55 @@ pub fn f0_track(
         times_s: t.times_s,
         f0_hz: t.f0_hz,
     })
+}
+
+/// F0 path plus each frame's voiced candidates, for manual correction.
+pub struct F0CandidatesData {
+    pub times_s: Vec<f64>,
+    /// Selected path; 0.0 marks an unvoiced frame.
+    pub f0_hz: Vec<f64>,
+    /// Row-major, `max_candidates` per frame, cheapest first; 0.0 pads.
+    pub candidates_hz: Vec<f64>,
+    pub max_candidates: u32,
+}
+
+/// Manual F0 corrections as stored in `<stem>.pitchedits.csv`.
+pub struct PitchEditsData {
+    pub time_step_s: f64,
+    pub f0_min_hz: f64,
+    pub f0_max_hz: f64,
+    pub times_s: Vec<f64>,
+    /// 0.0 marks a frame set to unvoiced.
+    pub f0_hz: Vec<f64>,
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn pitch_edits_path(wav_path: String) -> String {
+    pitch_edits::sidecar_path(&wav_path)
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn parse_pitch_edits(text: String) -> Result<PitchEditsData, String> {
+    let e = pitch_edits::PitchEdits::parse(&text)?;
+    Ok(PitchEditsData {
+        time_step_s: e.time_step_s,
+        f0_min_hz: e.f0_min_hz,
+        f0_max_hz: e.f0_max_hz,
+        times_s: e.times_s,
+        f0_hz: e.f0_hz,
+    })
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn format_pitch_edits(data: PitchEditsData) -> String {
+    pitch_edits::PitchEdits {
+        time_step_s: data.time_step_s,
+        f0_min_hz: data.f0_min_hz,
+        f0_max_hz: data.f0_max_hz,
+        times_s: data.times_s,
+        f0_hz: data.f0_hz,
+    }
+    .to_text()
 }
 
 pub struct IntensityTrackData {
@@ -329,6 +379,35 @@ impl Sound {
         F0TrackData {
             times_s: t.times_s,
             f0_hz: t.f0_hz,
+        }
+    }
+
+    pub fn f0_candidates(
+        &self,
+        time_step_s: f64,
+        f0_min_hz: f64,
+        f0_max_hz: f64,
+    ) -> F0CandidatesData {
+        let c = pitch::track_f0_candidates(
+            &self.wav.samples,
+            self.wav.sample_rate,
+            &pitch::F0Params {
+                time_step_s,
+                f0_min_hz,
+                f0_max_hz,
+                ..Default::default()
+            },
+        );
+        let k = pitch::MAX_VOICED_CANDIDATES;
+        let mut flat = vec![0.0; c.times_s.len() * k];
+        for (i, cands) in c.candidates_hz.iter().enumerate() {
+            flat[i * k..i * k + cands.len()].copy_from_slice(cands);
+        }
+        F0CandidatesData {
+            times_s: c.times_s,
+            f0_hz: c.f0_hz,
+            candidates_hz: flat,
+            max_candidates: k as u32,
         }
     }
 

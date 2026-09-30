@@ -66,7 +66,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -19337776;
+  int get rustContentHash => -725432860;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -97,6 +97,13 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<F0TrackData> crateApiCoreSoundF0({
+    required Sound that,
+    required double timeStepS,
+    required double f0MinHz,
+    required double f0MaxHz,
+  });
+
+  Future<F0CandidatesData> crateApiCoreSoundF0Candidates({
     required Sound that,
     required double timeStepS,
     required double f0MinHz,
@@ -164,6 +171,8 @@ abstract class RustLibApi extends BaseApi {
     required double ceilingHz,
   });
 
+  String crateApiCoreFormatPitchEdits({required PitchEditsData data});
+
   Future<void> crateApiCoreInitApp();
 
   Future<IntensityTrackData> crateApiCoreIntensityTrack({
@@ -171,6 +180,10 @@ abstract class RustLibApi extends BaseApi {
     required double timeStepS,
     required double minPitchHz,
   });
+
+  PitchEditsData crateApiCoreParsePitchEdits({required String text});
+
+  String crateApiCorePitchEditsPath({required String wavPath});
 
   Future<TextGridData> crateApiCoreReadTextGrid({required String path});
 
@@ -381,6 +394,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<F0CandidatesData> crateApiCoreSoundF0Candidates({
+    required Sound that,
+    required double timeStepS,
+    required double f0MinHz,
+    required double f0MaxHz,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSound(
+            that,
+            serializer,
+          );
+          sse_encode_f_64(timeStepS, serializer);
+          sse_encode_f_64(f0MinHz, serializer);
+          sse_encode_f_64(f0MaxHz, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_f_0_candidates_data,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCoreSoundF0CandidatesConstMeta,
+        argValues: [that, timeStepS, f0MinHz, f0MaxHz],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreSoundF0CandidatesConstMeta =>
+      const TaskConstMeta(
+        debugName: "Sound_f0_candidates",
+        argNames: ["that", "timeStepS", "f0MinHz", "f0MaxHz"],
+      );
+
+  @override
   Future<FormantTrackData> crateApiCoreSoundFormants({
     required Sound that,
     required double timeStepS,
@@ -401,7 +456,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 7,
             port: port_,
           );
         },
@@ -440,7 +495,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 8,
             port: port_,
           );
         },
@@ -470,7 +525,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 9,
             port: port_,
           );
         },
@@ -499,7 +554,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_u_32,
@@ -542,7 +597,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 11,
             port: port_,
           );
         },
@@ -602,7 +657,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 12,
             port: port_,
           );
         },
@@ -643,7 +698,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 13,
             port: port_,
           );
         },
@@ -676,7 +731,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -699,7 +754,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(input, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -733,7 +788,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 16,
             port: port_,
           );
         },
@@ -771,7 +826,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 17,
             port: port_,
           );
         },
@@ -792,6 +847,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  String crateApiCoreFormatPitchEdits({required PitchEditsData data}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_pitch_edits_data(data, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCoreFormatPitchEditsConstMeta,
+        argValues: [data],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreFormatPitchEditsConstMeta =>
+      const TaskConstMeta(debugName: "format_pitch_edits", argNames: ["data"]);
+
+  @override
   Future<void> crateApiCoreInitApp() {
     return handler.executeNormal(
       NormalTask(
@@ -800,7 +878,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 19,
             port: port_,
           );
         },
@@ -834,7 +912,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 20,
             port: port_,
           );
         },
@@ -855,6 +933,52 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  PitchEditsData crateApiCoreParsePitchEdits({required String text}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(text, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_pitch_edits_data,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiCoreParsePitchEditsConstMeta,
+        argValues: [text],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreParsePitchEditsConstMeta =>
+      const TaskConstMeta(debugName: "parse_pitch_edits", argNames: ["text"]);
+
+  @override
+  String crateApiCorePitchEditsPath({required String wavPath}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(wavPath, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 22)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCorePitchEditsPathConstMeta,
+        argValues: [wavPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCorePitchEditsPathConstMeta =>
+      const TaskConstMeta(debugName: "pitch_edits_path", argNames: ["wavPath"]);
+
+  @override
   Future<TextGridData> crateApiCoreReadTextGrid({required String path}) {
     return handler.executeNormal(
       NormalTask(
@@ -864,7 +988,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 23,
             port: port_,
           );
         },
@@ -898,7 +1022,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 24,
             port: port_,
           );
         },
@@ -928,7 +1052,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 25,
             port: port_,
           );
         },
@@ -956,7 +1080,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 26,
             port: port_,
           );
         },
@@ -988,7 +1112,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 27,
             port: port_,
           );
         },
@@ -1062,9 +1186,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PitchEditsData dco_decode_box_autoadd_pitch_edits_data(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_pitch_edits_data(raw);
+  }
+
+  @protected
   TextGridData dco_decode_box_autoadd_text_grid_data(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_text_grid_data(raw);
+  }
+
+  @protected
+  F0CandidatesData dco_decode_f_0_candidates_data(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return F0CandidatesData(
+      timesS: dco_decode_list_prim_f_64_strict(arr[0]),
+      f0Hz: dco_decode_list_prim_f_64_strict(arr[1]),
+      candidatesHz: dco_decode_list_prim_f_64_strict(arr[2]),
+      maxCandidates: dco_decode_u_32(arr[3]),
+    );
   }
 
   @protected
@@ -1151,6 +1295,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_f_64(raw);
+  }
+
+  @protected
+  PitchEditsData dco_decode_pitch_edits_data(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return PitchEditsData(
+      timeStepS: dco_decode_f_64(arr[0]),
+      f0MinHz: dco_decode_f_64(arr[1]),
+      f0MaxHz: dco_decode_f_64(arr[2]),
+      timesS: dco_decode_list_prim_f_64_strict(arr[3]),
+      f0Hz: dco_decode_list_prim_f_64_strict(arr[4]),
+    );
   }
 
   @protected
@@ -1347,11 +1506,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PitchEditsData sse_decode_box_autoadd_pitch_edits_data(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_pitch_edits_data(deserializer));
+  }
+
+  @protected
   TextGridData sse_decode_box_autoadd_text_grid_data(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_text_grid_data(deserializer));
+  }
+
+  @protected
+  F0CandidatesData sse_decode_f_0_candidates_data(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_timesS = sse_decode_list_prim_f_64_strict(deserializer);
+    var var_f0Hz = sse_decode_list_prim_f_64_strict(deserializer);
+    var var_candidatesHz = sse_decode_list_prim_f_64_strict(deserializer);
+    var var_maxCandidates = sse_decode_u_32(deserializer);
+    return F0CandidatesData(
+      timesS: var_timesS,
+      f0Hz: var_f0Hz,
+      candidatesHz: var_candidatesHz,
+      maxCandidates: var_maxCandidates,
+    );
   }
 
   @protected
@@ -1455,6 +1639,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     } else {
       return null;
     }
+  }
+
+  @protected
+  PitchEditsData sse_decode_pitch_edits_data(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_timeStepS = sse_decode_f_64(deserializer);
+    var var_f0MinHz = sse_decode_f_64(deserializer);
+    var var_f0MaxHz = sse_decode_f_64(deserializer);
+    var var_timesS = sse_decode_list_prim_f_64_strict(deserializer);
+    var var_f0Hz = sse_decode_list_prim_f_64_strict(deserializer);
+    return PitchEditsData(
+      timeStepS: var_timeStepS,
+      f0MinHz: var_f0MinHz,
+      f0MaxHz: var_f0MaxHz,
+      timesS: var_timesS,
+      f0Hz: var_f0Hz,
+    );
   }
 
   @protected
@@ -1664,12 +1865,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_pitch_edits_data(
+    PitchEditsData self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_pitch_edits_data(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_text_grid_data(
     TextGridData self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_text_grid_data(self, serializer);
+  }
+
+  @protected
+  void sse_encode_f_0_candidates_data(
+    F0CandidatesData self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_prim_f_64_strict(self.timesS, serializer);
+    sse_encode_list_prim_f_64_strict(self.f0Hz, serializer);
+    sse_encode_list_prim_f_64_strict(self.candidatesHz, serializer);
+    sse_encode_u_32(self.maxCandidates, serializer);
   }
 
   @protected
@@ -1772,6 +1994,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (self != null) {
       sse_encode_box_autoadd_f_64(self, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_pitch_edits_data(
+    PitchEditsData self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self.timeStepS, serializer);
+    sse_encode_f_64(self.f0MinHz, serializer);
+    sse_encode_f_64(self.f0MaxHz, serializer);
+    sse_encode_list_prim_f_64_strict(self.timesS, serializer);
+    sse_encode_list_prim_f_64_strict(self.f0Hz, serializer);
   }
 
   @protected
@@ -1948,6 +2183,17 @@ class SoundImpl extends RustOpaque implements Sound {
     required double f0MinHz,
     required double f0MaxHz,
   }) => RustLib.instance.api.crateApiCoreSoundF0(
+    that: this,
+    timeStepS: timeStepS,
+    f0MinHz: f0MinHz,
+    f0MaxHz: f0MaxHz,
+  );
+
+  Future<F0CandidatesData> f0Candidates({
+    required double timeStepS,
+    required double f0MinHz,
+    required double f0MaxHz,
+  }) => RustLib.instance.api.crateApiCoreSoundF0Candidates(
     that: this,
     timeStepS: timeStepS,
     f0MinHz: f0MinHz,
