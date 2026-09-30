@@ -37,6 +37,10 @@ pub struct F0Params {
     /// discussion at [`DEFAULT_UNVOICED_COST`]; the field exists so the
     /// validation harness can sweep the value without a rebuild.
     pub unvoiced_cost: f64,
+    /// Fraction of the recording's absolute peak below which a frame is
+    /// probably silent; see [`DEFAULT_SILENCE_THRESHOLD`]. 0 disables the
+    /// level term.
+    pub silence_threshold: f64,
 }
 
 impl Default for F0Params {
@@ -47,6 +51,7 @@ impl Default for F0Params {
             f0_max_hz: 600.0,
             threshold: 0.1,
             unvoiced_cost: DEFAULT_UNVOICED_COST,
+            silence_threshold: DEFAULT_SILENCE_THRESHOLD,
         }
     }
 }
@@ -222,22 +227,43 @@ const OCTAVE_COST: f64 = 0.01;
 const OCTAVE_JUMP_COST: f64 = 0.35;
 /// Cost of a voiced <-> unvoiced flip.
 const VOICED_UNVOICED_COST: f64 = 0.14;
-/// Default local cost of the unvoiced candidate, in CMNDF units. Above the
-/// YIN threshold (0.1) the path tracker voices frames the per-frame rule
-/// rejects, provided their neighbours support them. Calibrated on the
-/// calibration half of the gated public real-speech tier: at the historical
-/// 0.2 the tracker missed 22% of the frames Praat voices in continuous
-/// speech — breathy and low-energy voiced frames sit at CMNDF 0.2..0.5,
-/// which only synthetic signals stay below. Raising the cost recovers them
-/// while whispered and noise-only material stays unvoiced; past ~0.55 the
-/// tracker starts voicing whisper (false-voicing 2% -> 20% -> 48% at 0.55 /
-/// 0.60). Agreement on the gated tier plateaus over 0.40..0.50 and peaks at
-/// 0.40, which is also the point of that plateau farthest from the whisper
-/// cliff, so the maximum and the safety margin select the same value.
-/// An earlier release shipped 0.45, chosen on a private corpus that is no
-/// longer the gated tier. `validation/sweep.py` regenerates the evidence;
-/// see `docs/VALIDATION.md`.
-pub const DEFAULT_UNVOICED_COST: f64 = 0.40;
+/// Default local cost of the unvoiced candidate, in CMNDF units, before the
+/// level term of [`DEFAULT_SILENCE_THRESHOLD`] lowers it for faint frames.
+/// Above the YIN threshold (0.1) the path tracker voices frames the
+/// per-frame rule rejects, provided their neighbours support them.
+/// Calibrated on the calibration subset of the public tier with the level
+/// term in place (`validation/voicing_diagnosis.py --subset calib`):
+/// agreement with Praat is 94.01 / 94.34 / 94.43 / 93.97% at 0.45 / 0.475 /
+/// 0.50 / 0.55. The whispered synthetic vowel bounds the value from above:
+/// its false voicing is 2.2% up to 0.50, then 3.4 / 7.9 / 20.2% at 0.51 /
+/// 0.53 / 0.55. The value is the point of the 0.475..0.50 plateau farthest
+/// from that cliff, the same rule that chose the previous 0.40, which was
+/// calibrated without the level term.
+pub const DEFAULT_UNVOICED_COST: f64 = 0.475;
+
+/// Default silence threshold, as a fraction of the recording's absolute
+/// peak. Boersma (1993, IFA Proceedings 17, eq. 23) lowers the cost of the
+/// unvoiced candidate as a frame's local peak falls relative to the global
+/// peak, so that periodic but faint material (hum, reverberation tails,
+/// breath) is not voiced. Without that term the tracker voiced 3,787 frames
+/// of the public evaluation subset more than 30 dB below the loudest frame,
+/// where Praat voices almost none (`validation/voicing_diagnosis.py`). The
+/// value is the published default, not a calibrated one.
+pub const DEFAULT_SILENCE_THRESHOLD: f64 = 0.03;
+
+/// Reduction of the unvoiced candidate's cost for a frame whose absolute
+/// peak is `local_peak`. Boersma's unvoiced strength is
+/// `v + max(0, 2 - (local/global) / (s / (1 + v)))` with `v` the voicing
+/// threshold; in cost units (1 - strength) the level term is subtracted
+/// from the unvoiced cost, and `v` is the voicing threshold implied by it.
+fn silence_discount(local_peak: f64, global_peak: f64, params: &F0Params) -> f64 {
+    if params.silence_threshold <= 0.0 || global_peak <= 0.0 {
+        return 0.0;
+    }
+    let v = 1.0 - params.unvoiced_cost;
+    let ratio = local_peak / global_peak;
+    (2.0 - ratio / (params.silence_threshold / (1.0 + v))).max(0.0)
+}
 
 /// One frame's pitch hypothesis: `f0 == 0.0` is the unvoiced candidate.
 #[derive(Clone, Copy)]
@@ -254,6 +280,7 @@ fn frame_candidates(
     tau_max: usize,
     sr: f64,
     params: &F0Params,
+    unvoiced_cost: f64,
 ) -> Vec<Candidate> {
     // Rank by octave-biased cost, not raw depth: on perfectly periodic
     // frames every subharmonic dip is as deep as the true one (to float
@@ -278,7 +305,7 @@ fn frame_candidates(
     out.truncate(MAX_CANDIDATES);
     out.push(Candidate {
         f0: 0.0,
-        cost: params.unvoiced_cost,
+        cost: unvoiced_cost,
     });
     out
 }
@@ -291,6 +318,7 @@ pub fn track_f0(samples: &[f64], sample_rate: u32, params: &F0Params) -> F0Track
     let frame_n = 2 * tau_max;
     let hop = ((params.time_step_s * sr).round() as usize).max(1);
 
+    let global_peak = samples.iter().fold(0.0f64, |m, x| m.max(x.abs()));
     let mut times_s = Vec::new();
     let mut frames: Vec<Vec<Candidate>> = Vec::new();
     let mut scratch = DiffScratch::new(frame_n);
@@ -298,8 +326,10 @@ pub fn track_f0(samples: &[f64], sample_rate: u32, params: &F0Params) -> F0Track
     while start + frame_n <= samples.len() {
         let frame = &samples[start..start + frame_n];
         let dp = cmndf_from_difference(&scratch.difference(frame, tau_max));
+        let local_peak = frame.iter().fold(0.0f64, |m, x| m.max(x.abs()));
+        let unvoiced = params.unvoiced_cost - silence_discount(local_peak, global_peak, params);
         times_s.push((start + frame_n / 2) as f64 / sr);
-        frames.push(frame_candidates(&dp, tau_min, tau_max, sr, params));
+        frames.push(frame_candidates(&dp, tau_min, tau_max, sr, params, unvoiced));
         start += hop;
     }
     if frames.is_empty() {

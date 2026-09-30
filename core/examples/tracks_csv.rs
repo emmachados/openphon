@@ -10,10 +10,11 @@
 //! pole in band. The app default keeps the filter; the validation gate
 //! must compare like-for-like.
 //!
-//! `OPENPHON_UNVOICED_COST` overrides the pitch tracker's unvoiced
-//! candidate cost (CMNDF units). It exists so `validation/sweep.py` can
-//! sweep the tracker's one consequential free parameter without seven
-//! edit-and-rebuild cycles; unset, the shipped default applies.
+//! `OPENPHON_UNVOICED_COST` and `OPENPHON_SILENCE_THRESHOLD` override the
+//! pitch tracker's unvoiced candidate cost (CMNDF units) and silence
+//! threshold (fraction of the absolute peak), so the validation scripts can
+//! score candidate operating points without a rebuild; unset, the shipped
+//! defaults apply.
 
 use openphon_core::{formant, pitch, wav};
 use std::fmt::Write as _;
@@ -29,18 +30,12 @@ fn main() {
     // value the published figures were computed at.
     if path == "--params" {
         let mut p = pitch::F0Params::default();
-        let mut overridden = false;
-        if let Ok(v) = std::env::var("OPENPHON_UNVOICED_COST") {
-            p.unvoiced_cost = v
-                .parse()
-                .unwrap_or_else(|_| panic!("OPENPHON_UNVOICED_COST is not a number: {v:?}"));
-            overridden = true;
-        }
+        let overridden = apply_overrides(&mut p);
         let f = formant::FormantParams::default();
         println!(
             "{{\"unvoiced_cost\":{},\"unvoiced_cost_overridden\":{},\
              \"f0_min_hz\":{},\"f0_max_hz\":{},\"time_step_s\":{},\
-             \"threshold\":{},\
+             \"threshold\":{},\"silence_threshold\":{},\
              \"formant_max_bandwidth_hz\":{},\"crate_version\":\"{}\"}}",
             p.unvoiced_cost,
             overridden,
@@ -48,6 +43,7 @@ fn main() {
             p.f0_max_hz,
             p.time_step_s,
             p.threshold,
+            p.silence_threshold,
             f.max_bandwidth_hz,
             env!("CARGO_PKG_VERSION")
         );
@@ -62,11 +58,7 @@ fn main() {
     let w = wav::WavData::from_file(&path).unwrap();
 
     let mut pparams = pitch::F0Params::default();
-    if let Ok(v) = std::env::var("OPENPHON_UNVOICED_COST") {
-        pparams.unvoiced_cost = v
-            .parse()
-            .unwrap_or_else(|_| panic!("OPENPHON_UNVOICED_COST is not a number: {v:?}"));
-    }
+    apply_overrides(&mut pparams);
     let t = pitch::track_f0(&w.samples, w.sample_rate, &pparams);
     let mut csv = String::from("time_s,f0_hz\n");
     for (time, f0) in t.times_s.iter().zip(&t.f0_hz) {
@@ -100,4 +92,22 @@ fn main() {
         csv.push('\n');
     }
     std::fs::write(format!("{out_dir}/{stem}.formant.csv"), csv).unwrap();
+}
+
+/// Applies `OPENPHON_UNVOICED_COST` and `OPENPHON_SILENCE_THRESHOLD`;
+/// returns whether either was set.
+fn apply_overrides(p: &mut pitch::F0Params) -> bool {
+    let mut overridden = false;
+    for (name, field) in [
+        ("OPENPHON_UNVOICED_COST", &mut p.unvoiced_cost),
+        ("OPENPHON_SILENCE_THRESHOLD", &mut p.silence_threshold),
+    ] {
+        if let Ok(v) = std::env::var(name) {
+            *field = v
+                .parse()
+                .unwrap_or_else(|_| panic!("{name} is not a number: {v:?}"));
+            overridden = true;
+        }
+    }
+    overridden
 }
