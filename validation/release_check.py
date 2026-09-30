@@ -27,7 +27,7 @@ import split
 import synthesize
 
 HERE = Path(__file__).resolve().parent
-REPORT_ONLY = ["public:voicing_agreement_pct"]
+REPORT_ONLY = []
 
 
 def json_safe(value):
@@ -98,7 +98,7 @@ def main():
         raw_report = work / "tracks.json"
         status = compare.main([
             "--split", "eval", "--json", str(raw_report),
-            "--report-only", *REPORT_ONLY,
+            *(["--report-only", *REPORT_ONLY] if REPORT_ONLY else []),
         ])
         report = json.loads(raw_report.read_text())
         expected_public = sum(

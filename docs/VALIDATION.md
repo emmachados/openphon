@@ -1,14 +1,14 @@
 # Validation report
 
-openphon 0.1.0, openphon_core 0.1.0. Recomputed on 28 September 2026
+openphon 0.1.0, openphon_core 0.1.0. Recomputed on 30 September 2026
 against Praat 6.1.38 through praat-parselmouth 0.4.7.
 
-The current implementation passes the synthetic track, voice-quality and
-spectral checks, and the public-speech F0 and formant checks. Public-speech
-voicing agreement is 89.48285%, below the unchanged target of more than
-90%. The existing CI exception reports that metric without failing the
-workflow. A passing workflow therefore does not establish that every
-numerical target has been met.
+The current implementation passes every synthetic and public-speech track
+check and the voice-quality and spectral checks. Public-speech voicing
+agreement is 95.07410% against a target of more than 90%. The release of
+28 September measured 89.48285% and reported that metric without enforcing
+it; the pitch tracker change described under [Voicing agreement](#voicing-agreement)
+raised it, and CI now enforces every target.
 
 ## Data and procedure
 
@@ -49,7 +49,9 @@ the benchmark nor its scoring rules.
 
 Pitch defaults are a 10 ms step and a 75–600 Hz range. Formants use five
 candidates, a 5500 Hz ceiling, a 25 ms window and pre-emphasis from 50 Hz.
-The shipped pitch unvoiced cost remains 0.40. Scoring uses the common frame
+The pitch tracker's unvoiced cost is 0.475 and its silence threshold 0.03
+of the recording's absolute peak (see [Voicing agreement](#voicing-agreement)).
+Scoring uses the common frame
 grid in `validation/gridalign.py`; the report includes coverage diagnostics.
 F0 deviations use frames both trackers call voiced. The public-speech
 formant comparison also uses mutually voiced frames.
@@ -66,23 +68,62 @@ formant comparison also uses mutually voiced frames.
 
 | Public evaluation metric, 192 recordings | Result | Target | Result against target |
 |---|---:|---:|---|
-| Voicing agreement | 89.48285% | > 90% | Fail, report-only in CI |
-| Median absolute F0 deviation | 0.455 Hz | < 2 Hz | Pass |
-| Median absolute F1 deviation | 6.299 Hz | < 15 Hz | Pass |
-| Median absolute F2 deviation | 16.966 Hz | < 45 Hz | Pass |
-| Median absolute F3 deviation | 28.045 Hz | < 75 Hz | Pass |
+| Voicing agreement | 95.07410% | > 90% | Pass |
+| Median absolute F0 deviation | 0.469 Hz | < 2 Hz | Pass |
+| Median absolute F1 deviation | 6.397 Hz | < 15 Hz | Pass |
+| Median absolute F2 deviation | 17.004 Hz | < 45 Hz | Pass |
+| Median absolute F3 deviation | 28.197 Hz | < 75 Hz | Pass |
 
-The public score covers 96,490 frames: 54,889 mutually voiced, 31,453
-mutually unvoiced, 5,164 voiced only by openphon and 4,984 voiced only by
+The public score covers 96,490 frames: 56,869 mutually voiced, 34,868
+mutually unvoiced, 1,749 voiced only by openphon and 3,004 voiced only by
 Praat. Median deviations describe the centre of the error distribution.
-Public F1/F2/F3 RMSE values are 113.911/265.671/345.706 Hz, so the median
-results should not be read as bounds on individual frames.
+Public F1/F2/F3 RMSE values are 116.304/266.340/347.542 Hz, so the median
+results should not be read as bounds on individual frames. The F0 and
+formant medians rose slightly from the previous release (F0 0.455 Hz, F3
+28.045 Hz) because the mutually voiced set over which they are computed
+grew by 1,980 frames.
 
 These are measurements of agreement with a specified Praat implementation.
 They do not establish accuracy against physiological ground truth or
 performance across other languages, recording conditions or parameter
-settings. This rerun does not establish the cause of the voicing shortfall.
-No historical divergence-envelope result is used to excuse it.
+settings.
+
+## Voicing agreement
+
+`validation/voicing_diagnosis.py` classifies every public frame by
+agreement class and describes the disagreeing frames by level relative to
+the recording's loudest frame, distance to the nearest voicing transition
+and run context. At the previous operating point (unvoiced cost 0.40, no
+level term) the evaluation subset had 5,164 frames voiced only by openphon
+and 4,984 voiced only by Praat, from two separate mechanisms.
+
+Of the openphon-only frames, 3,787 (73%) lay more than 30 dB below the
+loudest frame; of all 22,486 frames that far down, Praat voiced 77.
+Praat's pitch analysis lowers the cost of the unvoiced candidate as a
+frame's local peak falls relative to the global peak (Boersma 1993,
+silence threshold 0.03), and openphon had no level term. The tracker now
+implements that term at the published default of 0.03; the value was
+not calibrated.
+
+The unvoiced cost of 0.40 had been calibrated without the level term, so
+it was recalibrated on the 168 calibration recordings only. With the level
+term, calibration agreement was 94.01, 94.34, 94.43 and 93.97% at 0.45,
+0.475, 0.50 and 0.55. False voicing of the whispered synthetic vowel bounds
+the value from above: 2.2% up to 0.50, then 3.4, 7.9 and 20.2% at 0.51,
+0.53 and 0.55 (Praat: 5.7%). The shipped 0.475 is the point of the
+0.475 to 0.50 plateau farthest from that rise, the rule that chose 0.40.
+The evaluation subset was scored once, at that value. All synthetic gates
+are unchanged, and the voice-quality figures below are identical to the
+previous release.
+
+The remaining disagreement lies at segment edges. Of the 4,753
+disagreeing evaluation frames, 4,031 (85%) are adjacent to a voicing
+transition in one of the tracks, and no openphon-only frame is more than
+four frames from one. Praat-only edge frames outnumber openphon-only ones,
+which is consistent with Praat's longer analysis window (three periods of
+the floor, 40 ms at 75 Hz, against openphon's two periods, 26.7 ms); that
+explanation has not been tested, because changing the window would also
+change F0 estimates and requires its own evaluation.
 
 ## Voice quality and spectral moments
 
@@ -112,9 +153,13 @@ ceiling, pitch range or other settings also changes what is measured.
 
 The application verification includes signed Android production packages,
 an iOS development archive, 137 Flutter tests and nine native integration
-tests on each of Android and iOS simulators. The native tests cover the Rust
-bridge, analyses, TextGrid round trips and atomic replacement, playback,
-invalid input and storage preparation. iOS backup-exclusion attributes are
+tests on each of Android and iOS simulators for build 2. The native tests
+cover the Rust bridge, analyses, TextGrid round trips and atomic
+replacement, playback, invalid input and storage preparation. The pitch
+correction change added 10 Flutter tests and one native test; the 147
+Flutter tests and 10 native tests passed on an iPhone 17 Pro simulator
+running iOS 26.5 on 30 September. The native suite was not rerun on
+Android for that change. iOS backup-exclusion attributes are
 read back by the native test. A synthetic WAV and TextGrid were exported
 through the iPad share sheet, saved in local Files and imported back through
 both native pickers; the annotation tier was displayed. Manual test reports
@@ -140,15 +185,14 @@ python voice_quality_check.py
 python spectral_check.py
 ```
 
-The release script preserves the existing public-voicing report-only
-exception in its exit status. Inspect `all_targets_passed` and `checks`
-in its JSON, not only the process exit code. The saved run used Python
-3.13.15, NumPy 2.5.3 and rustc 1.97.1 on macOS arm64; the JSON records the
-complete environment and source hashes. CI regenerates its own evidence
-on Linux. The [successful Linux run](https://github.com/emmachados/openphon/actions/runs/36534135577)
-verified the same archive, manifest and partition and passed every enforced
-check. Its public voicing result is 89.48492%; the macOS tables above retain
-the values from their own recorded environment.
+The release script enforces every track target in its exit status;
+`all_targets_passed` and `checks` in its JSON record each value. The saved
+run used Python 3.14.7, NumPy 2.5.3 and rustc 1.97.1 on macOS arm64; the
+JSON records the complete environment and source hashes. CI regenerates its
+own evidence on Linux. The last Linux run, at the previous tracker
+([run 36534135577](https://github.com/emmachados/openphon/actions/runs/36534135577)),
+measured public voicing agreement of 89.48492% against 89.48285% on macOS;
+no Linux run exists yet for the current tracker.
 
 Historical research reports are outside the public release source selection.
 Their scores, partitions and causal claims are not used as release evidence.

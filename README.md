@@ -65,10 +65,11 @@ the data, parameters and error distributions, with
 [machine-readable results](validation/release_report.json) and
 [reproduction instructions](validation/README.md).
 
-Public-speech voicing agreement is 89.48%, below the target of more than
-90%. This metric is reported without failing CI. The comparisons measure
+Public-speech voicing agreement is 95.07% against a target of more than
+90%, and CI enforces every numerical target. The comparisons measure
 agreement at the tested settings, not accuracy for every recording or
-parameter choice.
+parameter choice. Where the pitch tracker errs, F0 can be corrected by
+hand; see the [user guide](docs/GUIDE.md#correcting-pitch).
 
 ## Licence
 

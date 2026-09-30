@@ -31,6 +31,7 @@ openphon measure     file.wav --tier bursts --rel-tier phones   # point tier: va
                                                     # (VOT-style)
 openphon measure     corpus_dir/ --tier phones      # batch: every WAV with a sibling
                                                     # TextGrid; adds a `file` column
+openphon measure     file.wav --ignore-pitch-edits  # measure the automatic F0 track
 ```
 
 Run `openphon help` for all options. The analysis parameters and comparisons
@@ -38,6 +39,12 @@ with Praat are described in the [validation report](../docs/VALIDATION.md).
 Pitch CSV uses the same column layout as the validation harness.
 
 Notes:
+
+- `measure` applies the app's manual pitch corrections from a sibling
+  `<stem>.pitchedits.csv` and appends `f0_edited_frames` (intervals) or
+  `f0_edited` (points). Without that file the columns are unchanged.
+  Edits made at a different `--step`, `--floor` or `--ceiling` are an
+  error; `--ignore-pitch-edits` measures the automatic track instead.
 
 - `formants --max N` sets the model order (like Praat's "number of
   formants"), which changes the analysis, not just the number of columns.

@@ -28,18 +28,21 @@ and incomplete scoring are errors.
 
 The report records source and manifest hashes, environment versions,
 per-file results, coverage and every threshold. `all_targets_passed`
-reports the numerical outcome independently of CI policy. Public voicing
-agreement currently measures 89.48285% against a target above 90%; this
-metric retains the existing report-only exception. The other synthetic
-and public track gates pass. No threshold or pitch parameter was changed
-in the release rerun.
+reports the numerical outcome independently of CI policy. Every synthetic
+and public track gate passes and is enforced; public voicing agreement
+measures 95.07410% against a target above 90%. No threshold was changed.
+The pitch tracker's level term and unvoiced cost changed on 30 September;
+`voicing_diagnosis.py` reproduces the diagnosis and the calibration-subset
+scores behind that change (`--subset calib`, `--unvoiced-cost`, `--env
+OPENPHON_SILENCE_THRESHOLD=...`).
 
 ## Scoring and material
 
 `compare.py` uses `gridalign.py` to sample both methods onto a common frame
 grid. Default settings are a 10 ms step, F0 range 75–600 Hz, five formants,
 a 5500 Hz ceiling, a 25 ms formant window and pre-emphasis from 50 Hz.
-The release pitch unvoiced cost is 0.40. Formants are compared without the
+The release pitch unvoiced cost is 0.475, with a silence threshold of 0.03
+of the recording's absolute peak. Formants are compared without the
 application's 400 Hz bandwidth filter; the results describe this raw
 candidate configuration. Public F0 and formant deviations use frames
 both pitch trackers call voiced.

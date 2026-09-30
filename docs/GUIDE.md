@@ -45,8 +45,39 @@ Praat's (10 ms step, F0 75–600 Hz, 5 formants below 5500 Hz, 25 ms
 formant window, pre-emphasis from 50 Hz).
 
 The [validation report](VALIDATION.md) describes agreement with Praat at
-specified settings. Public-speech voicing agreement remains below its
-target; the report gives the numerical results and their limits.
+specified settings, with the numerical results and their limits.
+
+## Correcting pitch
+
+The pitch tracker chooses one F0 value per 10 ms frame from up to four
+candidate periodicities, or calls the frame unvoiced. Where it chooses
+wrongly, typically an octave error or voicing in breath or noise, the
+**Edit pitch** button (the line-chart icon in the transport bar) turns on
+pitch editing. Zoomed in far enough that frames are at least 3 px apart,
+each frame's candidates are drawn as rings.
+
+- Tap a ring to use that candidate for its frame.
+- Select a stretch, then use the edit bar to move its voiced frames an
+  octave down or up, set its frames unvoiced, voice its unvoiced frames
+  with their best candidate, or revert it to the automatic track. An
+  octave move snaps to a candidate within a semitone of the target when
+  one exists.
+- Undo and redo (Ctrl+Z, Ctrl+Y on a keyboard) apply to pitch edits while
+  editing is on.
+
+Edited frames are marked with a square (or a cross at the floor when set
+unvoiced) whenever the pitch layer is shown. Every consumer of the F0
+track uses the corrected values: the readout, the measurement exports and
+the command line. The voice report runs its own analysis and ignores
+them.
+
+Edits are saved automatically beside the recording as
+`<name>.pitchedits.csv`, a comment line holding the pitch settings
+followed by `time_s,f0_hz` rows (0 = unvoiced). They belong to the time
+step, floor and ceiling they were made at: after changing any of those,
+the edits are kept on disk but not applied, and the edit bar offers to
+restore the settings or discard the edits. Library backups include the
+file; deleting a recording deletes it.
 
 ## Annotation
 
@@ -66,13 +97,15 @@ From the annotation menu:
 - **Export TextGrid** writes a Praat text-format TextGrid.
 - **Export measurements** writes a CSV with one row per interval of the
   active tier: duration, mean/median F0, F1–F3 at the midpoint, mean
-  intensity.
+  intensity. When pitch edits apply, a final `f0_edited_frames` column
+  counts the corrected frames in each interval.
 
 On Android and iOS both exports open the system share sheet; on desktop they
 open a save dialog. The library screen's menu also offers **Export
 measurements (library)**: one CSV over every recording that has a
 TextGrid, with a leading `file` column, the same format as the CLI's
-batch mode. Recordings are ordinary WAV files in the app's private
+batch mode. It measures at the default settings, so a recording whose
+pitch edits were made at other settings is left out and reported. Recordings are ordinary WAV files in the app's private
 storage; library tiles offer rename and delete.
 
 ## Command line

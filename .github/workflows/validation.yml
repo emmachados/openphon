@@ -1,5 +1,5 @@
-# Praat agreement checks. Public voicing retains its documented report-only
-# exception; a green workflow does not mean every numerical target was met.
+# Praat agreement checks. Every synthetic and public track target is
+# enforced.
 
 name: Validation
 
@@ -161,8 +161,7 @@ jobs:
             sed -n '/aggregate (public/,/^$/p' public_run.txt || true
             echo '```'
             echo
-            echo "Formant and F0 gates block. The voicing gate is reported"
-            echo "only. Its target remains above 90%; inspect the report for failures."
+            echo "Voicing, F0 and formant gates all block."
             echo "See docs/VALIDATION.md for the scope of these measurements."
           } >> "$GITHUB_STEP_SUMMARY"
 
