@@ -60,6 +60,7 @@ jobs:
 
   ios:
     runs-on: macos-latest
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: app
@@ -87,6 +88,42 @@ jobs:
           PY
       - run: xcrun simctl boot "$SIMULATOR_ID"
       - run: xcrun simctl bootstatus "$SIMULATOR_ID" -b
-      - run: flutter test integration_test --no-pub -d "$SIMULATOR_ID"
+      # One file per invocation, each bounded. The combined invocation has
+      # stalled after an Xcode build with no test output (29 and 30 September,
+      # on different files); a stalled file is retried once, and the
+      # simulator log is kept for diagnosis.
+      - name: Native integration tests
+        run: |
+          status=0
+          for test in integration_test/*_test.dart; do
+            for attempt in 1 2; do
+              echo "::group::$test (attempt $attempt)"
+              set +e
+              perl -e 'alarm shift; exec @ARGV' 900 \
+                flutter test "$test" --no-pub -d "$SIMULATOR_ID"
+              code=$?
+              set -e
+              echo "::endgroup::"
+              if [ "$code" -eq 0 ]; then break; fi
+              # 142 = killed by the alarm (SIGALRM); retry only a stall.
+              if [ "$code" -ne 142 ] || [ "$attempt" -eq 2 ]; then
+                echo "::error::$test failed with exit code $code"
+                status=1
+                break
+              fi
+              echo "::warning::$test stalled for 15 minutes; retrying"
+            done
+          done
+          exit $status
+      - name: Keep the simulator log
+        if: failure()
+        run: |
+          xcrun simctl spawn "$SIMULATOR_ID" log show --last 90m --style compact \
+            --predicate 'process == "Runner"' > "$RUNNER_TEMP/simulator.log" || true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ios-simulator-log
+          path: ${{ runner.temp }}/simulator.log
       - name: Compile the production iOS application
         run: flutter build ios --release --no-codesign --no-pub
