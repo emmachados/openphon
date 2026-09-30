@@ -26,6 +26,13 @@ or TestFlight distribution package. Neither store submission is complete.
 | Android production packages | APK and AAB build and signature checks passed |
 | iOS production build | Compilation and development-signed archive passed; distribution signing unavailable |
 
+The next build has not been packaged. The current source adds manual
+pitch correction and changes the pitch tracker's voicing decision (see the
+[changelog](../CHANGELOG.md)). On 30 September it passed 147 Flutter tests,
+80 Rust core tests with one ignored, seven CLI tests and ten native tests
+on an iPhone 17 Pro simulator running iOS 26.5. Its native tests have not
+been run on Android.
+
 Native tests cover the Rust bridge, analysis, malformed input, TextGrid
 replacement, playback and storage preparation. Integration tests run in
 debug mode. The signed Android release also received a separate startup
@@ -82,9 +89,10 @@ reproducible-build verification against the release APK is set up.
 The [store listing draft](STORE_LISTING.md) contains the current metadata
 and proposed privacy answers.
 
-Public-speech voicing agreement is 89.48%, below the target of more than
-90%. CI reports this metric without enforcing the target. Other numerical
-results and their scope are described in the [validation report](VALIDATION.md).
+Public-speech voicing agreement is 95.07% for the current source, against
+a target of more than 90%, and CI enforces it. Build 2 measured 89.48% and
+reported the metric without enforcing it. Other numerical results and
+their scope are described in the [validation report](VALIDATION.md).
 
 ## Device test procedure
 
@@ -126,8 +134,9 @@ the GitHub release contains the separately signed Android packages.
 [Validation CI](https://github.com/emmachados/openphon/actions/runs/36534135577)
 at `995bd1f` passed core and CLI tests, synthetic, voice-quality and spectral
 checks, 13 data-integrity tests, and public-speech scoring. The core and
-validation code are unchanged in build 2. Public voicing agreement was
-89.48492% on Linux and 89.48285% in the recorded macOS run.
+validation code are unchanged in build 2. Public voicing agreement for
+build 2 was 89.48492% on Linux and 89.48285% in the recorded macOS run;
+the current tracker measures 95.07410% on macOS.
 
 The [public benchmark archive](https://github.com/emmachados/openphon/releases/tag/validation-public-v1)
 contains the 360 WAV files used in validation, with hashes, source attribution

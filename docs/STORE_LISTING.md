@@ -22,8 +22,8 @@ backups; export a library backup before removing the app or changing device.
 
 The algorithms and validation procedure are open source. Measurements
 depend on the recording and analysis settings. The published validation
-report describes comparisons with Praat, including the public-speech
-voicing result below its target. openphon is not a medical diagnostic tool.
+report describes comparisons with Praat. openphon is not a medical
+diagnostic tool.
 
 ## Submission information
 
