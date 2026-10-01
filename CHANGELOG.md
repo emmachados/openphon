@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.0-rc.3
 
 Pitch can be corrected by hand. In pitch edit mode each frame's candidates
 are drawn and can be chosen by tapping; a selection can be moved an octave

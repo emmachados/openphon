@@ -1,0 +1,5 @@
+Pitch can be corrected by hand: pick a frame's candidate, or move a
+selection an octave, set it unvoiced or voiced, or revert it. Corrections
+are saved beside the recording and apply to the readout, exports and the
+voice report. The pitch tracker's voicing decision changed, so F0 can
+differ at voicing edges and in faint stretches.

@@ -8,7 +8,7 @@ in CSV format. Audio processing runs on the device.
 
 ## Installation
 
-Download the APK from the [latest Android prerelease](https://github.com/emmachados/openphon/releases/tag/v0.1.0-rc.2).
+Download the APK from the [latest Android prerelease](https://github.com/emmachados/openphon/releases/tag/v0.1.0-rc.3).
 Version 0.1.0 is a release candidate intended for testing. The accompanying
 AAB is for Google Play distribution, not direct installation. An iOS
 package is not yet available; iOS builds require Xcode and local signing.
