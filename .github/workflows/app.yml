@@ -61,6 +61,8 @@ jobs:
   ios:
     runs-on: macos-latest
     timeout-minutes: 90
+    env:
+      APP_LOG_PREDICATE: 'process == "Runner" OR eventMessage CONTAINS[c] "openphon" OR eventMessage CONTAINS "Runner.app"'
     defaults:
       run:
         working-directory: app
@@ -91,7 +93,8 @@ jobs:
       # One file per invocation, each bounded. The combined invocation has
       # stalled after an Xcode build with no test output (29 and 30 September,
       # on different files); a stalled file is retried once, and the
-      # simulator log is kept for diagnosis.
+      # simulator log is kept for diagnosis, filtered to the app, its install
+      # and launch (the unfiltered log was 734 MB).
       - name: Native integration tests
         run: |
           status=0
@@ -113,6 +116,7 @@ jobs:
               fi
               echo "::warning::$test stalled for 15 minutes; retrying"
               xcrun simctl spawn "$SIMULATOR_ID" log show --last 20m --style compact \
+                --predicate "$APP_LOG_PREDICATE" \
                 > "$RUNNER_TEMP/stall-$(basename "$test" .dart).log" || true
             done
           done
@@ -121,6 +125,7 @@ jobs:
         if: failure()
         run: |
           xcrun simctl spawn "$SIMULATOR_ID" log show --last 90m --style compact \
+            --predicate "$APP_LOG_PREDICATE" \
             > "$RUNNER_TEMP/stall-failure.log" || true
       # Stall logs are kept even when the retry passes, to find the cause.
       - uses: actions/upload-artifact@v4
