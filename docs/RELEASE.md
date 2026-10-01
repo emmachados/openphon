@@ -1,13 +1,13 @@
 # Release status
 
-Version 0.1.0-rc.2, build 2. Test record dated 29 September 2026.
+Version 0.1.0-rc.3, build 3. Test record dated 1 October 2026.
 
 ## Downloads
 
-The [Android release](https://github.com/emmachados/openphon/releases/tag/v0.1.0-rc.2)
+The [Android release](https://github.com/emmachados/openphon/releases/tag/v0.1.0-rc.3)
 contains a signed APK for direct installation, an AAB for Google Play,
 `SHA256SUMS` and `verification.json`. Android requires API 24 or later
-and targets API 36. Application source: `b36f1d2`.
+and targets API 36. Application source: `689bd92`.
 
 An iOS development archive is available locally, but there is no App Store
 or TestFlight distribution package. Neither store submission is complete.
@@ -17,26 +17,27 @@ or TestFlight distribution package. Neither store submission is complete.
 | Check | Result |
 |---|---|
 | Flutter static analysis | No issues |
-| Flutter tests | 137 passed, including three recording-interruption regressions |
-| Rust core tests | 74 passed; one ignored |
-| CLI tests | Four passed |
-| Android 16, ARM64, 16 KB pages | Build 2: nine native tests passed; signed APK starts with page-size compatibility fallback disabled |
+| Flutter tests | 147 passed |
+| Rust core tests | 82 passed; one ignored |
+| CLI tests | Six passed |
+| Android 16, ARM64, 16 KB pages | Build 3: ten native tests passed; signed APK starts with page-size compatibility fallback disabled |
 | Android 16, ARM64, 4 KB pages | Build 1: nine native tests passed |
-| iPad simulator, iOS 26.5 | Build 2: nine native tests passed |
+| iPhone 17 Pro simulator, iOS 26.5 | Build 3: ten native tests passed |
 | Android production packages | APK and AAB build and signature checks passed |
-| iOS production build | Compilation and development-signed archive passed; distribution signing unavailable |
+| iOS production build | Build 3: unsigned release compilation passed. Build 2: development-signed archive passed. Distribution signing unavailable |
 
-The next build has not been packaged. The current source adds manual
-pitch correction and changes the pitch tracker's voicing decision (see the
-[changelog](../CHANGELOG.md)). On 30 September it passed 147 Flutter tests,
-80 Rust core tests with one ignored, seven CLI tests and ten native tests
-on an iPhone 17 Pro simulator running iOS 26.5. Its native tests have not
-been run on Android.
+Build 3 adds manual pitch correction, applies the corrections in the
+voice report and changes the pitch tracker's voicing decision (see the
+[changelog](../CHANGELOG.md)). The tenth native test checks that a
+corrected track reaches the voice report.
 
 Native tests cover the Rust bridge, analysis, malformed input, TextGrid
-replacement, playback and storage preparation. Integration tests run in
-debug mode. The signed Android release also received a separate startup
-check; the checked startup log contained no crash.
+replacement, pitch correction, playback and storage preparation.
+Integration tests run in debug mode. The signed Android release received a
+separate startup check on the 16 KB emulator with
+`bionic.linker.16kb.app_compat.enabled` set to false: the package reported
+`pageSizeCompat=0`, the crash log was empty, and Settings showed the Rust
+core version.
 
 The APK has no Internet permission and disables backups. ZIP alignment
 passes `zipalign -c -P 16 -v 4`; all ARM64 and x86_64 native LOAD segments
@@ -71,7 +72,8 @@ native suite, which requires USB with the documented Flutter test command.
 
 ## Outstanding checks
 
-Physical Android recording, microphone permission recovery, interruptions,
+Build 3 has not run on a physical Android or iOS device, on a 4 KB-page
+Android emulator or as an iOS development archive. Physical Android recording, microphone permission recovery, interruptions,
 document-provider import and paired sharing remain untested. Separate
 background/foreground recording transitions and physical backup/restore
 or device-transfer exclusions also remain untested. Simulator attribute
@@ -89,7 +91,7 @@ reproducible-build verification against the release APK is set up.
 The [store listing draft](STORE_LISTING.md) contains the current metadata
 and proposed privacy answers.
 
-Public-speech voicing agreement is 95.07% for the current source, against
+Public-speech voicing agreement is 95.07% for build 3, against
 a target of more than 90%, and CI enforces it. Build 2 measured 89.48% and
 reported the metric without enforcing it. Other numerical results and
 their scope are described in the [validation report](VALIDATION.md).
@@ -125,18 +127,21 @@ Signing credentials and provisioning profiles belong outside the repository.
 
 ## CI and benchmark files
 
-[Application CI](https://github.com/emmachados/openphon/actions/runs/36537204654)
-at `b36f1d2` passed static analysis, 137 Flutter tests and Android production
-packaging. The iOS job was still running at the last check on 29 September.
-Local iOS results are listed above. CI packages are unsigned build outputs;
-the GitHub release contains the separately signed Android packages.
+[Application CI](https://github.com/emmachados/openphon/actions/runs/36732848229)
+at `68cc707` passed static analysis, Flutter tests, Android production
+packaging and the iOS simulator suite, after one retry of a stalled test
+launch. The build 3 commits had not been pushed when this record was
+written, so CI has not run on `689bd92`. CI packages are unsigned build
+outputs; the GitHub release contains the separately signed Android
+packages.
 
 [Validation CI](https://github.com/emmachados/openphon/actions/runs/36534135577)
 at `995bd1f` passed core and CLI tests, synthetic, voice-quality and spectral
 checks, 13 data-integrity tests, and public-speech scoring. The core and
 validation code are unchanged in build 2. Public voicing agreement for
 build 2 was 89.48492% on Linux and 89.48285% in the recorded macOS run;
-the current tracker measures 95.07410% on macOS.
+the build 3 tracker measures 95.07410% on macOS. The voice report change
+in build 3 leaves the voice-quality parity figures unchanged.
 
 The [public benchmark archive](https://github.com/emmachados/openphon/releases/tag/validation-public-v1)
 contains the 360 WAV files used in validation, with hashes, source attribution
