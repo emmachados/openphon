@@ -143,6 +143,7 @@ abstract class RustLibApi extends BaseApi {
     required double t1S,
     required double f0MinHz,
     required double f0MaxHz,
+    F0TrackData? f0,
   });
 
   Future<SpectrogramData> crateApiCoreComputeSpectrogram({
@@ -641,6 +642,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required double t1S,
     required double f0MinHz,
     required double f0MaxHz,
+    F0TrackData? f0,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -654,6 +656,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_f_64(t1S, serializer);
           sse_encode_f_64(f0MinHz, serializer);
           sse_encode_f_64(f0MaxHz, serializer);
+          sse_encode_opt_box_autoadd_f_0_track_data(f0, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -666,7 +669,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiCoreSoundVoiceReportConstMeta,
-        argValues: [that, t0S, t1S, f0MinHz, f0MaxHz],
+        argValues: [that, t0S, t1S, f0MinHz, f0MaxHz, f0],
         apiImpl: this,
       ),
     );
@@ -675,7 +678,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiCoreSoundVoiceReportConstMeta =>
       const TaskConstMeta(
         debugName: "Sound_voice_report",
-        argNames: ["that", "t0S", "t1S", "f0MinHz", "f0MaxHz"],
+        argNames: ["that", "t0S", "t1S", "f0MinHz", "f0MaxHz", "f0"],
       );
 
   @override
@@ -1180,6 +1183,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  F0TrackData dco_decode_box_autoadd_f_0_track_data(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_f_0_track_data(raw);
+  }
+
+  @protected
   double dco_decode_box_autoadd_f_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as double;
@@ -1289,6 +1298,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<TextGridTierData> dco_decode_list_text_grid_tier_data(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_text_grid_tier_data).toList();
+  }
+
+  @protected
+  F0TrackData? dco_decode_opt_box_autoadd_f_0_track_data(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_f_0_track_data(raw);
   }
 
   @protected
@@ -1500,6 +1515,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  F0TrackData sse_decode_box_autoadd_f_0_track_data(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_f_0_track_data(deserializer));
+  }
+
+  @protected
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_f_64(deserializer));
@@ -1628,6 +1651,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       ans_.add(sse_decode_text_grid_tier_data(deserializer));
     }
     return ans_;
+  }
+
+  @protected
+  F0TrackData? sse_decode_opt_box_autoadd_f_0_track_data(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_f_0_track_data(deserializer));
+    } else {
+      return null;
+    }
   }
 
   @protected
@@ -1859,6 +1895,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_f_0_track_data(
+    F0TrackData self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_0_track_data(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_f_64(self, serializer);
@@ -1983,6 +2028,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_text_grid_tier_data(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_f_0_track_data(
+    F0TrackData? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_f_0_track_data(self, serializer);
     }
   }
 
@@ -2243,16 +2301,22 @@ class SoundImpl extends RustOpaque implements Sound {
   /// Voice report over `[t0_s, t1_s]` (clamped to the file). An empty or
   /// inverted range yields an empty report rather than an error, so the
   /// UI can treat "nothing analyzable" uniformly with "too short".
+  ///
+  /// `f0`, when given, is the whole recording's displayed track, manual
+  /// corrections included; its frames inside the range drive the glottal
+  /// pulses and the F0 summary. Without it the range is tracked afresh.
   Future<VoiceReportData> voiceReport({
     required double t0S,
     required double t1S,
     required double f0MinHz,
     required double f0MaxHz,
+    F0TrackData? f0,
   }) => RustLib.instance.api.crateApiCoreSoundVoiceReport(
     that: this,
     t0S: t0S,
     t1S: t1S,
     f0MinHz: f0MinHz,
     f0MaxHz: f0MaxHz,
+    f0: f0,
   );
 }

@@ -344,9 +344,21 @@ fn shimmer_local(times: &[f64], amps: &[f64]) -> Option<f64> {
 
 /// Full voice report over a (assumed sustained, voiced) signal.
 pub fn analyze(samples: &[f64], sample_rate: u32, params: &F0Params) -> VoiceReport {
-    let sr = sample_rate as f64;
     let f0 = pitch::track_f0(samples, sample_rate, params);
-    let (times, amps) = point_process(samples, sr, &f0);
+    analyze_with_track(samples, sample_rate, params, &f0)
+}
+
+/// As [`analyze`], over a given F0 track whose frame times are relative to
+/// `samples[0]`, such as one carrying manual corrections. The glottal
+/// pulses and the F0 summary follow the track; HNR does not use it.
+pub fn analyze_with_track(
+    samples: &[f64],
+    sample_rate: u32,
+    params: &F0Params,
+    f0: &pitch::F0Track,
+) -> VoiceReport {
+    let sr = sample_rate as f64;
+    let (times, amps) = point_process(samples, sr, f0);
     let (median_f0_hz, mean_f0_hz, sd_f0_hz) = f0_summary(&f0.f0_hz);
     VoiceReport {
         mean_hnr_db: mean_hnr(samples, sr, params, 0.45),
@@ -433,6 +445,35 @@ mod tests {
             .unwrap();
         let wobbly = analyze(&s, SR, &Default::default()).shimmer_local.unwrap();
         assert!(wobbly > clean, "wobbly {wobbly} vs clean {clean}");
+    }
+
+    #[test]
+    fn given_track_drives_pulses_and_f0_summary() {
+        let s = sine(150.0, 0.5, 1.0);
+        let params = F0Params::default();
+        let mut f0 = pitch::track_f0(&s, SR, &params);
+        assert_eq!(
+            analyze_with_track(&s, SR, &params, &f0),
+            analyze(&s, SR, &params)
+        );
+        let whole = analyze(&s, SR, &params);
+        // Unvoicing the second half halves the pulses, as in Praat's
+        // To PointProcess (cc) from an edited Pitch; HNR is unaffected.
+        let half = f0.times_s.len() / 2;
+        f0.f0_hz[half..].fill(0.0);
+        let r = analyze_with_track(&s, SR, &params, &f0);
+        let ratio = r.n_periods as f64 / whole.n_periods as f64;
+        assert!(
+            (0.4..0.6).contains(&ratio),
+            "periods {} of {}",
+            r.n_periods,
+            whole.n_periods
+        );
+        assert_eq!(r.mean_hnr_db, whole.mean_hnr_db);
+        // An octave error left in the track shows in the F0 summary.
+        f0.f0_hz[half..].fill(75.0);
+        let r = analyze_with_track(&s, SR, &params, &f0);
+        assert!(r.median_f0_hz.unwrap() < 150.0 && r.sd_f0_hz.unwrap() > 30.0);
     }
 
     #[test]

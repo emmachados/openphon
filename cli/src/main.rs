@@ -20,8 +20,11 @@ Commands:
   intensity <file.wav>                 CSV time_s,intensity_db
       [--step S] [--min-pitch HZ]
   voice <file.wav>                     voice report (sustained vowels):
-      [--floor HZ] [--ceiling HZ]      mean HNR (dB), jitter/shimmer (local),
-                                       period count. Praat-validated.
+      [--step S] [--floor HZ]          mean HNR (dB), jitter/shimmer (local),
+      [--ceiling HZ]                   period count, F0 median/mean/SD.
+      [--ignore-pitch-edits]           Praat-validated. Pitch edits apply
+                                       to pulses and F0 as in measure, and
+                                       add an f0_edited_frames row.
   formants <file.wav>                  CSV time_s,f1_hz..fN_hz (0 = missing)
       [--step S] [--max N] [--ceiling HZ] [--window S]
       [--pre-emphasis HZ] [--raw]      --raw: report every pole in band
@@ -236,15 +239,27 @@ fn pitch_cmd(args: &[String]) -> Result<(), String> {
 }
 
 fn voice_cmd(args: &[String]) -> Result<(), String> {
-    let opts = parse_opts(args, &["out", "floor", "ceiling"], &[])?;
+    let opts = parse_opts(
+        args,
+        &["out", "step", "floor", "ceiling"],
+        &["ignore-pitch-edits"],
+    )?;
     let d = pitch::F0Params::default();
     let params = pitch::F0Params {
+        time_step_s: opts.f64("step", d.time_step_s)?,
         f0_min_hz: opts.f64("floor", d.f0_min_hz)?,
         f0_max_hz: opts.f64("ceiling", d.f0_max_hz)?,
         ..d
     };
     let w = load_wav(&opts.file)?;
-    let r = voice_quality::analyze(&w.samples, w.sample_rate, &params);
+    let mut f0 = pitch::track_f0(&w.samples, w.sample_rate, &params);
+    let edited = measure::apply_sidecar_edits(
+        &opts.file,
+        &params,
+        opts.has("ignore-pitch-edits"),
+        &mut f0,
+    )?;
+    let r = voice_quality::analyze_with_track(&w.samples, w.sample_rate, &params, &f0);
     let na = |v: Option<f64>, p: usize| v.map_or("nan".into(), |x| format!("{x:.p$}"));
     let mut csv = String::from("metric,value\n");
     writeln!(csv, "mean_hnr_db,{}", na(r.mean_hnr_db, 3)).unwrap();
@@ -254,6 +269,10 @@ fn voice_cmd(args: &[String]) -> Result<(), String> {
     writeln!(csv, "median_f0_hz,{}", na(r.median_f0_hz, 3)).unwrap();
     writeln!(csv, "mean_f0_hz,{}", na(r.mean_f0_hz, 3)).unwrap();
     writeln!(csv, "sd_f0_hz,{}", na(r.sd_f0_hz, 3)).unwrap();
+    if let Some(mask) = edited {
+        let n = mask.iter().filter(|&&e| e).count();
+        writeln!(csv, "f0_edited_frames,{n}").unwrap();
+    }
     opts.emit(&csv)
 }
 

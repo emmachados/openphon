@@ -67,9 +67,11 @@ each frame's candidates are drawn as rings.
 
 Edited frames are marked with a square (or a cross at the floor when set
 unvoiced) whenever the pitch layer is shown. Every consumer of the F0
-track uses the corrected values: the readout, the measurement exports and
-the command line. The voice report runs its own analysis and ignores
-them.
+track uses the corrected values: the readout, the measurement exports, the
+voice report and the command line. In the voice report the corrected track
+places the glottal pulses, as an edited Pitch object does in Praat, so
+jitter, shimmer, the period count and the F0 summary follow the edits;
+HNR does not depend on the track.
 
 Edits are saved automatically beside the recording as
 `<name>.pitchedits.csv`, a comment line holding the pitch settings

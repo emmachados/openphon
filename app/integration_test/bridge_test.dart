@@ -189,6 +189,36 @@ void main() {
     expect(empty.nPeriods.toInt(), 0);
     expect(empty.meanHnrDb, isNull);
 
+    // With the displayed track, frames set unvoiced by hand carry no
+    // pulses: unvoicing the second half of the range halves the periods.
+    final edited = rust_core.F0TrackData(
+      timesS: f0.timesS,
+      f0Hz: Float64List.fromList([
+        for (var i = 0; i < f0.timesS.length; i++)
+          f0.timesS[i] >= 0.5 ? 0.0 : f0.f0Hz[i],
+      ]),
+    );
+    final fromTrack = await sound.voiceReport(
+      t0S: 0.25,
+      t1S: 0.75,
+      f0MinHz: 75,
+      f0MaxHz: 600,
+      f0: f0,
+    );
+    final halved = await sound.voiceReport(
+      t0S: 0.25,
+      t1S: 0.75,
+      f0MinHz: 75,
+      f0MaxHz: 600,
+      f0: edited,
+    );
+    expect(fromTrack.nPeriods.toInt(), greaterThan(80));
+    expect(
+      halved.nPeriods.toInt() / fromTrack.nPeriods.toInt(),
+      inInclusiveRange(0.4, 0.6),
+    );
+    expect(halved.meanHnrDb, fromTrack.meanHnrDb);
+
     // Extract selection: a 0.2 s cut re-opens with the right length and
     // the same tone; an empty range is an error, not a file.
     final cutPath = '${dir.path}${Platform.pathSeparator}cut.wav';

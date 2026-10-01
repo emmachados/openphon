@@ -181,5 +181,47 @@ void main() {
     expect(c.pitchEditor!.editedCount, 1);
     expect(c.f0Track!.f0Hz[mid], closeTo(sub, 1e-3));
     expect(c.f0EditedMask![mid], isTrue);
+
+    // The voice report follows the corrected track: with the second half
+    // set unvoiced, a selection straddling it loses about half its pulses.
+    await tester.tap(find.byTooltip('Edit pitch'));
+    await tester.pump();
+    c.setSelection(TimeSelection(auto.timesS[mid], auto.timesS.last));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Set unvoiced (selection)'));
+    await tester.pump();
+    await tester.runAsync(() => c.pitchEditsSaved);
+    final t0 = auto.timesS[mid ~/ 2];
+    final t1 = auto.timesS[mid + mid ~/ 2];
+    c.setSelection(TimeSelection(t0, t1));
+    await tester.pump();
+    Future<rust.VoiceReportData> report(rust.F0TrackData f0) =>
+        c.sound!.voiceReport(
+          t0S: t0,
+          t1S: t1,
+          f0MinHz: c.pitchFloorHz,
+          f0MaxHz: c.pitchCeilingHz,
+          f0: f0,
+        );
+    final edited = (await tester.runAsync(() => report(c.f0Track!)))!;
+    final automatic = (await tester.runAsync(
+      () => report(rust.F0TrackData(timesS: auto.timesS, f0Hz: auto.f0Hz)),
+    ))!;
+    expect(
+      edited.nPeriods.toDouble(),
+      lessThan(0.7 * automatic.nPeriods.toDouble()),
+    );
+    await tester.tap(find.byTooltip('Voice report'));
+    final shown = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.text('${edited.nPeriods}'),
+    );
+    for (var i = 0; i < 100 && shown.evaluate().isEmpty; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+    }
+    expect(shown, findsOneWidget);
   });
 }

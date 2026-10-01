@@ -429,12 +429,17 @@ impl Sound {
     /// Voice report over `[t0_s, t1_s]` (clamped to the file). An empty or
     /// inverted range yields an empty report rather than an error, so the
     /// UI can treat "nothing analyzable" uniformly with "too short".
+    ///
+    /// `f0`, when given, is the whole recording's displayed track, manual
+    /// corrections included; its frames inside the range drive the glottal
+    /// pulses and the F0 summary. Without it the range is tracked afresh.
     pub fn voice_report(
         &self,
         t0_s: f64,
         t1_s: f64,
         f0_min_hz: f64,
         f0_max_hz: f64,
+        f0: Option<F0TrackData>,
     ) -> VoiceReportData {
         let sr = self.wav.sample_rate as f64;
         let n = self.wav.samples.len();
@@ -451,16 +456,29 @@ impl Sound {
                 sd_f0_hz: None,
             };
         }
-        let d = pitch::F0Params::default();
-        let r = voice_quality::analyze(
-            &self.wav.samples[i0..i1],
-            self.wav.sample_rate,
-            &pitch::F0Params {
-                f0_min_hz,
-                f0_max_hz,
-                ..d
-            },
-        );
+        let params = pitch::F0Params {
+            f0_min_hz,
+            f0_max_hz,
+            ..Default::default()
+        };
+        let samples = &self.wav.samples[i0..i1];
+        let r = match f0 {
+            Some(track) => {
+                let (s0, s1) = (i0 as f64 / sr, i1 as f64 / sr);
+                let mut slice = pitch::F0Track {
+                    times_s: Vec::new(),
+                    f0_hz: Vec::new(),
+                };
+                for (t, f) in track.times_s.iter().zip(&track.f0_hz) {
+                    if *t >= s0 && *t <= s1 {
+                        slice.times_s.push(t - s0);
+                        slice.f0_hz.push(*f);
+                    }
+                }
+                voice_quality::analyze_with_track(samples, self.wav.sample_rate, &params, &slice)
+            }
+            None => voice_quality::analyze(samples, self.wav.sample_rate, &params),
+        };
         voice_report_data(r)
     }
 

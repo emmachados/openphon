@@ -6,8 +6,13 @@ Pitch can be corrected by hand. In pitch edit mode each frame's candidates
 are drawn and can be chosen by tapping; a selection can be moved an octave
 down or up, set unvoiced or voiced, or reverted. Corrections are saved
 beside the recording as `<name>.pitchedits.csv` and apply to the readout,
-measurement exports, library backups and the CLI `measure` command, which
-adds an `f0_edited_frames` column when they apply.
+measurement exports, the voice report, library backups and the CLI
+`measure` and `voice` commands, which add an `f0_edited_frames` column or
+row when they apply. In the voice report the corrected track places the
+glottal pulses, so jitter, shimmer and the period count follow the edits;
+HNR does not. The app's voice report now uses the displayed F0 track, so
+a selection's report follows the whole recording's track at the analysis
+time step instead of tracking the selected stretch on its own.
 
 The pitch tracker now lowers the cost of the unvoiced candidate for faint
 frames, following Boersma (1993) with his default silence threshold of

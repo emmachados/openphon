@@ -654,6 +654,7 @@ fn wire__crate__api__core__Sound_voice_report_impl(
             let api_t1_s = <f64>::sse_decode(&mut deserializer);
             let api_f0_min_hz = <f64>::sse_decode(&mut deserializer);
             let api_f0_max_hz = <f64>::sse_decode(&mut deserializer);
+            let api_f0 = <Option<crate::api::core::F0TrackData>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, ()>((move || {
@@ -677,6 +678,7 @@ fn wire__crate__api__core__Sound_voice_report_impl(
                         api_t1_s,
                         api_f0_min_hz,
                         api_f0_max_hz,
+                        api_f0,
                     ))?;
                     Ok(output_ok)
                 })())
@@ -1376,6 +1378,17 @@ impl SseDecode for Vec<crate::api::core::TextGridTierData> {
     }
 }
 
+impl SseDecode for Option<crate::api::core::F0TrackData> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::core::F0TrackData>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<f64> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2039,6 +2052,16 @@ impl SseEncode for Vec<crate::api::core::TextGridTierData> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::core::TextGridTierData>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::core::F0TrackData> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::core::F0TrackData>::sse_encode(value, serializer);
         }
     }
 }

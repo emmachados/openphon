@@ -98,6 +98,29 @@ fn containing_interval(tier: &textgrid::IntervalTier, t: f64) -> Option<&textgri
         .find(|iv| (t >= iv.xmin && t < iv.xmax) || (t == iv.xmax && iv.xmax >= tier.xmax))
 }
 
+/// Applies the sibling `<stem>.pitchedits.csv` to `f0` unless `ignore`,
+/// returning the edited-frame mask; `None` when there is no such file.
+pub(crate) fn apply_sidecar_edits(
+    wav_path: &str,
+    params: &pitch::F0Params,
+    ignore: bool,
+    f0: &mut pitch::F0Track,
+) -> Result<Option<Vec<bool>>, String> {
+    let edits_path = pitch_edits::sidecar_path(wav_path);
+    if ignore || !std::path::Path::new(&edits_path).exists() {
+        return Ok(None);
+    }
+    let edits = pitch_edits::PitchEdits::parse_file(&edits_path)?;
+    if !edits.matches(params) {
+        return Err(format!(
+            "{edits_path} was made at time step {} s, floor {} Hz, ceiling {} Hz; \
+             use those settings or pass --ignore-pitch-edits",
+            edits.time_step_s, edits.f0_min_hz, edits.f0_max_hz
+        ));
+    }
+    Ok(Some(edits.apply(f0)))
+}
+
 /// Analysis tracks computed once per file.
 struct Tracks {
     f0: pitch::F0Track,
@@ -269,20 +292,8 @@ fn measure_file(
 
     let w = load_wav(wav_path)?;
     let mut f0 = pitch::track_f0(&w.samples, w.sample_rate, &cfg.pitch_params);
-    let edits_path = pitch_edits::sidecar_path(wav_path);
-    let f0_edited = if !cfg.ignore_pitch_edits && std::path::Path::new(&edits_path).exists() {
-        let edits = pitch_edits::PitchEdits::parse_file(&edits_path)?;
-        if !edits.matches(&cfg.pitch_params) {
-            return Err(format!(
-                "{edits_path} was made at time step {} s, floor {} Hz, ceiling {} Hz; \
-                 measure with those settings or pass --ignore-pitch-edits",
-                edits.time_step_s, edits.f0_min_hz, edits.f0_max_hz
-            ));
-        }
-        Some(edits.apply(&mut f0))
-    } else {
-        None
-    };
+    let f0_edited =
+        apply_sidecar_edits(wav_path, &cfg.pitch_params, cfg.ignore_pitch_edits, &mut f0)?;
     let tracks = Tracks {
         f0,
         f0_edited,
@@ -656,6 +667,39 @@ mod tests {
              cog_hz,spec_sd_hz,skewness,kurtosis,join_label"
         ));
         assert!(full.point_header().ends_with(",rel_label,to_start_s,to_end_s"));
+    }
+
+    #[test]
+    fn sidecar_edits_apply_only_at_their_settings() {
+        let dir = std::env::temp_dir().join(format!("openphon-edits-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let wav = dir.join("take.wav").to_string_lossy().into_owned();
+        let params = pitch::F0Params::default();
+        let track = || pitch::F0Track {
+            times_s: vec![0.01, 0.02, 0.03],
+            f0_hz: vec![200.0, 400.0, 200.0],
+        };
+        let mut f0 = track();
+        assert_eq!(apply_sidecar_edits(&wav, &params, false, &mut f0), Ok(None));
+        std::fs::write(
+            pitch_edits::sidecar_path(&wav),
+            "# openphon pitch edits 1; time_step_s=0.01; f0_min_hz=75; f0_max_hz=600\n\
+             time_s,f0_hz\n0.020000,200.000\n",
+        )
+        .unwrap();
+        let mask = apply_sidecar_edits(&wav, &params, false, &mut f0).unwrap();
+        assert_eq!(mask, Some(vec![false, true, false]));
+        assert_eq!(f0.f0_hz, vec![200.0, 200.0, 200.0]);
+        let mut f0 = track();
+        assert_eq!(apply_sidecar_edits(&wav, &params, true, &mut f0), Ok(None));
+        assert_eq!(f0.f0_hz[1], 400.0);
+        let other = pitch::F0Params {
+            f0_max_hz: 500.0,
+            ..params
+        };
+        let err = apply_sidecar_edits(&wav, &other, false, &mut f0).unwrap_err();
+        assert!(err.contains("--ignore-pitch-edits"), "{err}");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

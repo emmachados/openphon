@@ -154,11 +154,16 @@ abstract class Sound implements RustOpaqueInterface {
   /// Voice report over `[t0_s, t1_s]` (clamped to the file). An empty or
   /// inverted range yields an empty report rather than an error, so the
   /// UI can treat "nothing analyzable" uniformly with "too short".
+  ///
+  /// `f0`, when given, is the whole recording's displayed track, manual
+  /// corrections included; its frames inside the range drive the glottal
+  /// pulses and the F0 summary. Without it the range is tracked afresh.
   Future<VoiceReportData> voiceReport({
     required double t0S,
     required double t1S,
     required double f0MinHz,
     required double f0MaxHz,
+    F0TrackData? f0,
   });
 }
 

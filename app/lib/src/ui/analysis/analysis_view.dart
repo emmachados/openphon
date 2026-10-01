@@ -334,13 +334,15 @@ class AnalysisViewState extends State<AnalysisView> {
   }
 
   /// Praat-style voice report over the selection, or the whole recording
-  /// when nothing is selected.
+  /// when nothing is selected, from the displayed F0 track (pitch edits
+  /// included) once it has loaded.
   Future<void> _voiceReport() async {
     final sound = _controller.sound;
     if (sound == null) return;
     final sel = _controller.selection;
     final t0 = sel?.t0 ?? 0.0;
     final t1 = sel?.t1 ?? _controller.durationS;
+    final f0 = _controller.f0Track;
     await showDialog<void>(
       context: context,
       builder: (context) => VoiceReportDialog(
@@ -349,6 +351,7 @@ class AnalysisViewState extends State<AnalysisView> {
           t1S: t1,
           f0MinHz: _controller.pitchFloorHz,
           f0MaxHz: _controller.pitchCeilingHz,
+          f0: f0,
         ),
         t0: t0,
         t1: t1,
