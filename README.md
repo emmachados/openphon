@@ -73,6 +73,15 @@ agreement at the tested settings, not accuracy for every recording or
 parameter choice. Where the pitch tracker errs, F0 can be corrected by
 hand; see the [user guide](docs/GUIDE.md#correcting-pitch).
 
+## Citing openphon
+
+If you use openphon in research, please cite it. The citation data are in
+[`CITATION.cff`](CITATION.cff), and GitHub's "Cite this repository" button
+formats them:
+
+> Machado de Souza, E. (2026). *openphon* (Version 0.1.0-rc.3) [Computer
+> software]. University of Salamanca. https://github.com/emmachados/openphon
+
 ## Licence
 
 The code is licensed under [Apache-2.0](LICENSE). Third-party dependencies

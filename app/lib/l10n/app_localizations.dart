@@ -643,7 +643,7 @@ abstract class AppLocalizations {
   /// No description provided for @aboutLegalese.
   ///
   /// In en, this message translates to:
-  /// **'Apache-2.0. Analysis runs on this device. Recordings are shared only when you export them.'**
+  /// **'Apache-2.0. Analysis runs on this device. Recordings are shared only when you export them.\n\nIf you use openphon in research, please cite: Machado de Souza, E. openphon [Computer software]. University of Salamanca. https://github.com/emmachados/openphon'**
   String get aboutLegalese;
 
   /// No description provided for @sheetSpectrogram.

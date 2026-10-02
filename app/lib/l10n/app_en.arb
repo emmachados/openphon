@@ -121,7 +121,7 @@
   "resetAnalysisDefaults": "Reset analysis defaults",
   "aboutOpenphon": "About openphon",
   "aboutVersion": "0.1.0 (pre-release)",
-  "aboutLegalese": "Apache-2.0. Analysis runs on this device. Recordings are shared only when you export them.",
+  "aboutLegalese": "Apache-2.0. Analysis runs on this device. Recordings are shared only when you export them.\n\nIf you use openphon in research, please cite: Machado de Souza, E. openphon [Computer software]. University of Salamanca. https://github.com/emmachados/openphon",
 
   "sheetSpectrogram": "Spectrogram",
   "sheetPitch": "Pitch",
