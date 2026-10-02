@@ -8,7 +8,7 @@ in CSV format. Audio processing runs on the device.
 
 ## Installation
 
-Download the APK from the [latest Android prerelease](https://github.com/emmachados/openphon/releases/tag/v0.1.0-rc.3).
+Download the APK from the [latest Android prerelease](https://github.com/emmachados/openphon/releases/tag/v0.1.0-rc.4).
 Version 0.1.0 is a release candidate intended for testing. The accompanying
 AAB is for Google Play distribution, not direct installation. An iOS
 package is not yet available; iOS builds require Xcode and local signing.
@@ -79,7 +79,7 @@ If you use openphon in research, please cite it. The citation data are in
 [`CITATION.cff`](CITATION.cff), and GitHub's "Cite this repository" button
 formats them:
 
-> Machado de Souza, E. (2026). *openphon* (Version 0.1.0-rc.3) [Computer
+> Machado de Souza, E. (2026). *openphon* (Version 0.1.0-rc.4) [Computer
 > software]. University of Salamanca. https://github.com/emmachados/openphon
 
 ## Licence

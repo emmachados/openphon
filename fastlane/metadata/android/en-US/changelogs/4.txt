@@ -1,0 +1,2 @@
+The About screen asks researchers who use openphon to cite it and gives
+the reference. Analysis is unchanged from the previous version.

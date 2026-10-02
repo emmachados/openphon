@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-rc.4
+
+The About screen asks researchers who use openphon to cite it and gives
+the reference. Citation metadata are in `CITATION.cff`, and each release is
+archived on Zenodo with a DOI. Analysis is unchanged from 0.1.0-rc.3.
+
 ## 0.1.0-rc.3
 
 Pitch can be corrected by hand. In pitch edit mode each frame's candidates
