@@ -1,13 +1,13 @@
 # Release status
 
-Version 0.1.0-rc.3, build 3. Test record dated 1 October 2026.
+Version 0.1.0-rc.4, build 4. Test record dated 2 October 2026.
 
 ## Downloads
 
-The [Android release](https://github.com/emmachados/openphon/releases/tag/v0.1.0-rc.3)
+The [Android release](https://github.com/emmachados/openphon/releases/tag/v0.1.0-rc.4)
 contains a signed APK for direct installation, an AAB for Google Play,
 `SHA256SUMS` and `verification.json`. Android requires API 24 or later
-and targets API 36. Application source: `689bd92`.
+and targets API 36. Application source: `4d8e2a3`.
 
 An iOS development archive is available locally, but there is no App Store
 or TestFlight distribution package. Neither store submission is complete.
@@ -18,26 +18,33 @@ or TestFlight distribution package. Neither store submission is complete.
 |---|---|
 | Flutter static analysis | No issues |
 | Flutter tests | 147 passed |
-| Rust core tests | 82 passed; one ignored |
-| CLI tests | Six passed |
-| Android 16, ARM64, 16 KB pages | Build 3: ten native tests passed; signed APK starts with page-size compatibility fallback disabled |
+| Rust core tests | Build 3: 82 passed; one ignored. Unchanged in build 4 |
+| CLI tests | Build 3: six passed. Unchanged in build 4 |
+| Android 16, ARM64, 16 KB pages | Build 4: ten native tests passed; signed APK starts with page-size compatibility fallback disabled |
 | Android 16, ARM64, 4 KB pages | Build 1: nine native tests passed |
-| iPhone 17 Pro simulator, iOS 26.5 | Build 3: ten native tests passed |
+| iPhone 17 Pro simulator, iOS 26.5 | Build 4: ten native tests passed (one file failed on the first run and passed on three reruns) |
 | Android production packages | APK and AAB build and signature checks passed |
-| iOS production build | Build 3: unsigned release compilation passed. Build 2: development-signed archive passed. Distribution signing unavailable |
+| iOS production build | Build 4: unsigned release compilation passed on the second attempt. Build 2: development-signed archive passed. Distribution signing unavailable |
 
-Build 3 adds manual pitch correction, applies the corrections in the
-voice report and changes the pitch tracker's voicing decision (see the
-[changelog](../CHANGELOG.md)). The tenth native test checks that a
-corrected track reaches the voice report.
+Build 4 adds a citation request to the About screen and changes nothing
+in the analysis or the Rust code since build 3. Build 3 added manual pitch
+correction, applied the corrections in the voice report and changed the
+pitch tracker's voicing decision (see the [changelog](../CHANGELOG.md)).
+The tenth native test checks that a corrected track reaches the voice
+report.
+
+On the first iOS run of build 4, `annotation_storage_test.dart` failed in
+its first test and the unsigned release compilation reported an error.
+Their output was not kept, so the cause is unknown; the test passed on
+three further runs and the compilation succeeded when repeated.
 
 Native tests cover the Rust bridge, analysis, malformed input, TextGrid
 replacement, pitch correction, playback and storage preparation.
 Integration tests run in debug mode. The signed Android release received a
 separate startup check on the 16 KB emulator with
 `bionic.linker.16kb.app_compat.enabled` set to false: the package reported
-`pageSizeCompat=0`, the crash log was empty, and Settings showed the Rust
-core version.
+`pageSizeCompat=0`, the crash log was empty, Settings showed the Rust
+core version and About showed the citation request.
 
 The APK has no Internet permission and disables backups. ZIP alignment
 passes `zipalign -c -P 16 -v 4`; all ARM64 and x86_64 native LOAD segments
@@ -72,7 +79,7 @@ native suite, which requires USB with the documented Flutter test command.
 
 ## Outstanding checks
 
-Build 3 has not run on a physical Android or iOS device, on a 4 KB-page
+Builds 3 and 4 have not run on a physical Android or iOS device, on a 4 KB-page
 Android emulator or as an iOS development archive. Physical Android recording, microphone permission recovery, interruptions,
 document-provider import and paired sharing remain untested. Separate
 background/foreground recording transitions and physical backup/restore
@@ -127,13 +134,13 @@ Signing credentials and provisioning profiles belong outside the repository.
 
 ## CI and benchmark files
 
-[Application CI](https://github.com/emmachados/openphon/actions/runs/36732848229)
-at `68cc707` passed static analysis, Flutter tests, Android production
-packaging and the iOS simulator suite, after one retry of a stalled test
-launch. The build 3 commits had not been pushed when this record was
-written, so CI has not run on `689bd92`. CI packages are unsigned build
-outputs; the GitHub release contains the separately signed Android
-packages.
+[Application CI](https://github.com/emmachados/openphon/actions/runs/36982815768)
+at `382d053` (build 3) passed static analysis, Flutter tests, Android
+production packaging and the iOS simulator suite, after one retry of a
+stalled test launch. The build 4 commits had not been pushed when this
+record was written, so CI has not run on `4d8e2a3`. CI packages are
+unsigned build outputs; the GitHub release contains the separately signed
+Android packages.
 
 [Validation CI](https://github.com/emmachados/openphon/actions/runs/36534135577)
 at `995bd1f` passed core and CLI tests, synthetic, voice-quality and spectral
