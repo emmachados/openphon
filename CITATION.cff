@@ -12,6 +12,7 @@ authors:
     affiliation: University of Salamanca
     orcid: "https://orcid.org/0000-0003-4443-9739"
 version: 0.1.0-rc.4
+doi: 10.5281/zenodo.23100641
 date-released: "2026-10-02"
 license: Apache-2.0
 repository-code: "https://github.com/emmachados/openphon"

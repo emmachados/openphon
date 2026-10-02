@@ -80,7 +80,11 @@ If you use openphon in research, please cite it. The citation data are in
 formats them:
 
 > Machado de Souza, E. (2026). *openphon* (Version 0.1.0-rc.4) [Computer
-> software]. University of Salamanca. https://github.com/emmachados/openphon
+> software]. University of Salamanca. https://doi.org/10.5281/zenodo.23100641
+
+Each release is archived on Zenodo. DOI 10.5281/zenodo.23100641 always
+resolves to the latest version, and every version also has its own DOI on
+the [Zenodo record](https://doi.org/10.5281/zenodo.23100641).
 
 ## Licence
 
