@@ -15,6 +15,8 @@ package is not yet available; iOS builds require Xcode and local signing.
 
 See the [release notes](CHANGELOG.md) for changes and the
 [release status](docs/RELEASE.md) for test coverage and outstanding checks.
+The `main` branch includes measurement, backup and numerical corrections
+that are not yet included in the published `0.1.0-rc.4` packages.
 
 ## Using openphon
 
@@ -25,11 +27,21 @@ The annotation menu provides TextGrid editing and measurement export.
 The [user guide](docs/GUIDE.md) covers recording settings, supported WAV
 formats, annotation and export.
 
+Builds from `main` export CSV measurements and JSON metadata with analysis
+parameters, software version and source-file checksums. Missing measurements
+are blank CSV cells; interval summaries report contributing-frame counts.
+Library measurement export uses a selected tier name and each recording's
+saved settings, and reports recordings excluded from the export.
+
 The library is stored locally and excluded from automatic system backups.
-Use **Back up library…** to export recordings and annotations before
-removing the app or changing devices. Files exported to another app or
-storage provider follow that provider's settings. See the
-[privacy statement](docs/PRIVACY.md).
+In builds from `main`, **Back up library…** creates a versioned ZIP containing
+WAVs, TextGrids, pitch corrections and analysis settings. Creation validates
+the copied contents and metadata before finalizing the archive. Restore
+verifies checksums and file contents before adding recordings, and preserves
+the existing library. Failed backup writes preserve an earlier destination.
+Back up the library before removing the app or changing devices. Files
+exported to another app or storage provider follow that provider's settings.
+See the [privacy statement](docs/PRIVACY.md).
 
 ## Development
 
@@ -75,6 +87,19 @@ Praat's raw candidates exceed those targets. The comparisons measure
 agreement at the tested settings, not accuracy for every recording or
 parameter choice. Where the pitch tracker errs, F0 can be corrected by
 hand; see the [user guide](docs/GUIDE.md#correcting-pitch).
+
+Current source records formant algorithm revision 4. Its resampling preserves
+constant regions, removing the reproduced silent-gap artefacts without an
+amplitude threshold. All 82 numerical invariant checks pass; calibration and
+evaluation scores remain unchanged. Known-resonance tests still identify
+formant-selection errors, and the unsuccessful experimental temporal selector
+is disabled. The [validation report](docs/VALIDATION.md) retains those results.
+
+The corrected source passed 184 Flutter tests and ten targeted native tests
+on each Android and iOS simulator. Those native checks include backup/restore
+and measurement exports; the operating system's share and document-provider
+interfaces remain outside their coverage. See the
+[release verification record](docs/RELEASE.md#unreleased-source-verification).
 
 ## Citing openphon
 
