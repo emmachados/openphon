@@ -27,6 +27,7 @@ from pathlib import Path
 import numpy as np
 
 import gridalign
+import formant_evidence
 
 HERE = Path(__file__).parent
 WAVS = HERE / "wavs"
@@ -433,6 +434,12 @@ def main(argv=None):
         [str(exe), "--params"], check=True, capture_output=True,
         env=env, text=True).stdout)
     print(f"openphon operating point: {params}\n")
+    if params["formant_max_bandwidth_hz"] != 400.0:
+        raise ValueError("Shipped formant evidence requires the 400 Hz default")
+    displayed_evidence = formant_evidence.AgreementEvidence()
+    displayed_truth = []
+    matched_filter_evidence = formant_evidence.AgreementEvidence()
+    selection_controls = {}
 
     if args.dump_devs:
         Path(args.dump_devs).mkdir(parents=True, exist_ok=True)
@@ -571,6 +578,11 @@ def main(argv=None):
             t["f0_devs"].extend(devs)
 
         rf, gf = read_csv(ref_formant), read_csv(outdir / f"{wav.stem}.formant.csv")
+        subprocess.run([str(exe), str(wav), str(outdir)],
+                       check=True, capture_output=True, env=env)
+        sf = read_csv(outdir / f"{wav.stem}.formant.csv")
+        if not np.array_equal(sf["time_s"], gf["time_s"]):
+            raise ValueError(f"Raw and shipped frame grids differ: {wav.stem}")
         fdur = max(rf["time_s"][-1], gf["time_s"][-1]) + gridalign.STEP_S / 2
         forigin = gridalign.balanced_origin([rf["time_s"][0], gf["time_s"][0]])
         ftg = gridalign.canonical_grid(fdur, gridalign.STEP_S, forigin)
@@ -609,6 +621,44 @@ def main(argv=None):
             voiced_mask = frame_voiced_mask(ftg[fkeep], rp, gp)
         else:
             voiced_mask = np.ones(int(np.sum(fkeep)), dtype=bool)
+        shipped_sampled = {k: gridalign.sample_onto(
+            sf["time_s"], sf[f"f{k}_hz"], ftg)[0][fkeep] for k in (1, 2, 3)}
+        displayed_evidence.add(
+            wav.stem, tier, {k: fsamp["praat"][k][fkeep] for k in (1, 2, 3)},
+            {"raw": {k: fsamp["openphon"][k][fkeep] for k in (1, 2, 3)},
+             "shipped": shipped_sampled}, voiced_mask, cov_formant)
+        # A controlled comparison with identical selection rules on both
+        # sides. Keep the existing raw-reference comparison above unchanged.
+        reference_frequencies = np.column_stack([rf[f"f{k}_hz"] for k in range(1, 6)])
+        if any(f"b{k}_hz" not in rf for k in range(1, 6)):
+            raise ValueError("Reference bandwidths missing; regenerate references")
+        reference_bandwidths = np.column_stack([rf[f"b{k}_hz"] for k in range(1, 6)])
+        filtered_reference, reference_slots = formant_evidence.filter_candidates(
+            reference_frequencies, reference_bandwidths, params["formant_max_bandwidth_hz"])
+        matched_reference = {k: gridalign.sample_onto(
+            rf["time_s"], filtered_reference[:, k - 1], ftg)[0][fkeep] for k in (1, 2, 3)}
+        matched_filter_evidence.add(
+            wav.stem, tier, matched_reference, {"shipped": shipped_sampled},
+            voiced_mask, cov_formant)
+        controls = selection_controls.setdefault(
+            tier, {k: formant_evidence.SelectionComparison() for k in (1, 2, 3)})
+        for k in (1, 2, 3):
+            source_slots = gridalign.sample_onto(
+                rf["time_s"], reference_slots[:, k - 1], ftg)[0][fkeep]
+            controls[k].add(fsamp["praat"][k][fkeep][voiced_mask],
+                            matched_reference[k][voiced_mask],
+                            shipped_sampled[k][voiced_mask], source_slots[voiced_mask], k - 1)
+        truth_fn = FORMANT_TRUTH.get(wav.stem)
+        if truth_fn is not None:
+            truth_row = {"stem": wav.stem, "tier": tier}
+            for name, cols in (("raw", gf), ("shipped", sf), ("praat_burg", rf)):
+                times = cols["time_s"]
+                interior = ((times >= TRUTH_MARGIN_S)
+                            & (times <= times.max() - TRUTH_MARGIN_S))
+                values = np.column_stack([cols[f"f{k}_hz"] for k in range(1, 6)])
+                truth = np.array([truth_fn(t) for t in times[interior]])
+                truth_row[name] = formant_evidence.score_truth(values[interior], truth)
+            displayed_truth.append(truth_row)
         rmse = {}
         per_file_dev = {}
         for k in (1, 2, 3):
@@ -861,7 +911,32 @@ def main(argv=None):
                   + "".join(f"{agg[f'f{k}_median_dev_hz']:>8.1f}" for k in (1, 2, 3)))
     aggs.update(per_corpus)
 
-    print("\nRESULT:", "PASS" if ok else "FAIL")
+    displayed_report = displayed_evidence.report(GATES, REAL_GATES)
+    displayed_report["ground_truth_per_file"] = displayed_truth
+    displayed_report["truth_margin_s"] = TRUTH_MARGIN_S
+    print("\nShipped formants: same-target diagnostics (do not alter raw gates)")
+    for diagnostic in displayed_report["same_target_diagnostics"]:
+        print(f"  {diagnostic['tier']} {diagnostic['slot']} "
+              f"{diagnostic['metric']}={diagnostic['value']} "
+              f"< {diagnostic['threshold']}: "
+              f"{'PASS' if diagnostic['passed'] else 'FAIL'}")
+    matched_report = matched_filter_evidence.report(GATES, REAL_GATES)
+    matched_report["common_support_control"] = {
+        tier: {f"F{k}": control.result() for k, control in controls.items()}
+        for tier, controls in selection_controls.items()}
+    matched_report["reference_policy"] = (
+        "Praat Burg candidates filtered at bandwidth <= 400 Hz before alignment, "
+        "then sorted/compacted exactly as the shipped selection rule. "
+        "This controls selection-policy mismatch; it is not ground-truth accuracy.")
+    matched_report["configurations"] = {"shipped": {"max_bandwidth_hz": 400.0},
+                                         "reference": {"max_bandwidth_hz": 400.0}}
+    print("\nMatched-filter control: identical 400 Hz selection on both methods")
+    for diagnostic in matched_report["same_target_diagnostics"]:
+        print(f"  {diagnostic['tier']} {diagnostic['slot']} "
+              f"{diagnostic['metric']}={diagnostic['value']} "
+              f"< {diagnostic['threshold']}: "
+              f"{'PASS' if diagnostic['passed'] else 'FAIL'}")
+    print("\nRESULT (existing raw gates):", "PASS" if ok else "FAIL")
 
     if args.json_out:
         Path(args.json_out).write_text(json.dumps({
@@ -890,6 +965,8 @@ def main(argv=None):
                 "pooled": formant_truth_pooled,
                 "margin_s": TRUTH_MARGIN_S,
             },
+            "displayed_formants": displayed_report,
+            "matched_filter_control": matched_report,
             "passed": bool(ok),
         }, indent=2, default=float))
         print("wrote", args.json_out)

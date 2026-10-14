@@ -40,9 +40,17 @@ Pitch CSV uses the same column layout as the validation harness.
 
 Notes:
 
+- Annotation-based `measure` exports use empty cells for missing acoustic
+  measurements. Raw track commands retain zero for unvoiced/missing track
+  samples. Interval rows append `f0_frames`, `voiced_f0_frames` and
+  `intensity_frames` before any pitch-edit column. The median averages the
+  middle pair for an even number of voiced samples. Midpoint formants must
+  come from a frame inside the measured interval. CSV labels may contain
+  quoted newlines without changing the number or contents of records.
+
 - `measure` applies the app's manual pitch corrections from a sibling
   `<stem>.pitchedits.csv` and appends `f0_edited_frames` (intervals) or
-  `f0_edited` (points). Without that file the columns are unchanged.
+  `f0_edited` (points).
   Edits made at a different `--step`, `--floor` or `--ceiling` are an
   error; `--ignore-pitch-edits` measures the automatic track instead.
 

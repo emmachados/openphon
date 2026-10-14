@@ -16,8 +16,10 @@ Uint8List sineWav({
   final n = (sampleRate * seconds).round();
   final dataLen = n * 2;
   final b = BytesBuilder();
-  void u32(int v) => b.add(Uint8List(4)..buffer.asByteData().setUint32(0, v, Endian.little));
-  void u16(int v) => b.add(Uint8List(2)..buffer.asByteData().setUint16(0, v, Endian.little));
+  void u32(int v) =>
+      b.add(Uint8List(4)..buffer.asByteData().setUint32(0, v, Endian.little));
+  void u16(int v) =>
+      b.add(Uint8List(2)..buffer.asByteData().setUint16(0, v, Endian.little));
   b.add('RIFF'.codeUnits);
   u32(36 + dataLen);
   b.add('WAVE'.codeUnits);
@@ -49,13 +51,37 @@ void main() {
     expect(rust_core.echo(input: 'openphon'), 'openphon');
   });
 
-  testWidgets('DSP analyses run over the bridge on a real file',
-      (tester) async {
+  testWidgets('DC audio does not produce formants after native resampling', (
+    tester,
+  ) async {
+    final dir = await Directory.systemTemp.createTemp('openphon_dc_test');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}${Platform.pathSeparator}constant.wav');
+    final bytes = sineWav(freqHz: 0, sampleRate: 44100, seconds: 0.2);
+    final samples = ByteData.sublistView(bytes);
+    for (var offset = 44; offset < bytes.length; offset += 2) {
+      samples.setInt16(offset, 4096, Endian.little);
+    }
+    await file.writeAsBytes(bytes);
+    final formants = await rust_core.formantTrack(
+      path: file.path,
+      timeStepS: 0.01,
+      maxFormants: 5,
+      ceilingHz: 5500,
+    );
+    expect(formants.timesS, isNotEmpty);
+    expect(formants.formantsHz.every((value) => value == 0), isTrue);
+    expect(formants.bandwidthsHz.every((value) => value == 0), isTrue);
+  });
+
+  testWidgets('DSP analyses run over the bridge on a real file', (
+    tester,
+  ) async {
     final dir = await Directory.systemTemp.createTemp('openphon_test');
     final path = '${dir.path}${Platform.pathSeparator}sine220.wav';
-    await File(path).writeAsBytes(
-      sineWav(freqHz: 220, sampleRate: 44100, seconds: 1.0),
-    );
+    await File(
+      path,
+    ).writeAsBytes(sineWav(freqHz: 220, sampleRate: 44100, seconds: 1.0));
 
     final info = await rust_core.wavInfo(path: path);
     expect(info.sampleRate, 44100);
@@ -127,9 +153,9 @@ void main() {
   testWidgets('Sound handle: load once, analyze many', (tester) async {
     final dir = await Directory.systemTemp.createTemp('openphon_snd');
     final path = '${dir.path}${Platform.pathSeparator}sine220.wav';
-    await File(path).writeAsBytes(
-      sineWav(freqHz: 220, sampleRate: 44100, seconds: 1.0),
-    );
+    await File(
+      path,
+    ).writeAsBytes(sineWav(freqHz: 220, sampleRate: 44100, seconds: 1.0));
 
     final sound = await rust_core.Sound.load(path: path);
     expect(sound.sampleRate(), 44100);
@@ -281,8 +307,9 @@ void main() {
     await dir.delete(recursive: true);
   });
 
-  testWidgets('Bad file surfaces a Dart exception, not a crash',
-      (tester) async {
+  testWidgets('Bad file surfaces a Dart exception, not a crash', (
+    tester,
+  ) async {
     await expectLater(
       rust_core.wavInfo(path: 'Z:/does/not/exist.wav'),
       throwsA(anything),

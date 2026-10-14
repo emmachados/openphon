@@ -68,7 +68,10 @@ the data, parameters and error distributions, with
 [reproduction instructions](validation/README.md).
 
 Public-speech voicing agreement is 95.07% against a target of more than
-90%, and CI enforces every numerical target. The comparisons measure
+90%, and CI enforces the existing raw-track numerical targets. The
+default filtered formant output is evaluated separately, with explicit
+error distributions and missing-value counts; several comparisons with
+Praat's raw candidates exceed those targets. The comparisons measure
 agreement at the tested settings, not accuracy for every recording or
 parameter choice. Where the pitch tracker errs, F0 can be corrected by
 hand; see the [user guide](docs/GUIDE.md#correcting-pitch).

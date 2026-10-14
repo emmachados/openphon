@@ -2,8 +2,8 @@
 
 Requires the preserved public WAVs downloaded by fetch_public.py.
 Verifies their hashes and speaker partition, synthesizes fresh test signals,
-and generates new Praat references in a temporary directory. The existing
-public-voicing CI exception is recorded explicitly; its 90% target is unchanged.
+and generates new Praat references in a temporary directory. Raw-track gates retain their thresholds and enforcement. Parallel shipped
+formant results report labelled error and missingness without changing those gates.
 """
 
 import argparse
@@ -68,6 +68,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, default=HERE / "release_report.json")
     parser.add_argument("--public-directory", type=Path, default=HERE / "wavs/public")
+    parser.add_argument("--split", choices=("calib", "eval"), default="eval",
+                        help="Score calibration while developing a candidate; evaluation is the release default")
     args = parser.parse_args()
     output = args.out.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -88,6 +90,8 @@ def main():
         # a release score, and the participant corpus is never traversed.
         shutil.copy2(public / "manifest.csv", wavs / "public/manifest.csv")
         for row in rows:
+            if split.half_for(row["stem"], assignment) != args.split:
+                continue
             name = f"{row['stem']}.wav"
             shutil.copy2(public / name, wavs / "public" / name)
         generate_references.WAVS = wavs
@@ -97,15 +101,15 @@ def main():
         compare.WAVS, compare.REFS = wavs, refs
         raw_report = work / "tracks.json"
         status = compare.main([
-            "--split", "eval", "--json", str(raw_report),
+            "--split", args.split, "--json", str(raw_report),
             *(["--report-only", *REPORT_ONLY] if REPORT_ONLY else []),
         ])
         report = json.loads(raw_report.read_text())
         expected_public = sum(
-            split.half_for(row["stem"], assignment) == "eval" for row in rows
+            split.half_for(row["stem"], assignment) == args.split for row in rows
         )
         if report["aggregates"].get("public", {}).get("n_recordings") != expected_public:
-            raise RuntimeError("The evaluation score omitted public recordings")
+            raise RuntimeError("The selected public score omitted recordings")
         if report["aggregates"]["synth"]["n_recordings"] != len(list(wavs.glob("*.wav"))):
             raise RuntimeError("The score omitted synthetic recordings")
 
@@ -127,7 +131,7 @@ def main():
         *[HERE / name for name in (
             "compare.py", "gridalign.py", "generate_references.py",
             "synthesize.py", "split.py", "release_check.py", "audio_identity.py", "sample_public.py",
-            "fetch_public.py", "public_audio_archive.json",
+            "fetch_public.py", "public_audio_archive.json", "formant_evidence.py",
         )],
     ]
     report.pop("match_tol_s", None)  # Legacy nearest-frame metadata in compare.py.
@@ -146,6 +150,8 @@ def main():
         "audio_identity": "SHA-256 of original WAV file bytes; sha256 column in the committed manifest",
         "partition_sha256": sha256(partition_file),
         "evaluation_speakers": sum(half == "eval" for half in assignment.values()),
+        "scored_subset": args.split,
+        "scored_speakers": sum(half == args.split for half in assignment.values()),
     })
     output.write_text(json.dumps(json_safe(report), indent=2, allow_nan=False) + "\n")
     print(f"Release evidence: {output}")

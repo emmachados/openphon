@@ -1,5 +1,51 @@
 # Changelog
 
+## Unreleased
+
+Measurement exports wait for completed analyses and retain computation errors
+with a retry action. Outdated analysis requests cannot replace tracks computed
+with newer settings. Missing measurements are empty CSV cells; interval exports
+report frame counts, average the middle pair for even-sized medians, and retain
+multiline annotation labels. The default interval recipe uses the same columns
+in the app and CLI. A midpoint formant requires a frame inside the measured
+interval.
+
+Analysis settings reject nonfinite or invalid values. Corrupt stored settings
+and failed settings or pitch-correction saves are reported with recovery
+actions. Pending saves finish before library exports, and removing pitch
+corrections waits for earlier writes before deleting the sidecar.
+
+Library measurements use saved per-recording settings and an explicitly chosen
+tier name, and report all exclusions. Application measurement exports include
+JSON metadata with analysis parameters, source checksums and the bundled
+software version.
+Backups are versioned ZIP archives containing complete analysis settings and
+associated files. Restore verifies checksums and native file contents before
+adding new entries, and preserves the existing library.
+
+Validation now reports the default bandwidth-filtered formant output alongside
+raw LPC candidates, including missingness and error tails. A 252-cell synthetic
+grid compares both configurations with known resonance frequencies. A matched
+reference control applies the same bandwidth selection to Praat and retains
+the original raw-reference comparison and coverage separately.
+
+Formant preprocessing now removes constant offsets before resampling and
+windowing, scales the anti-aliasing filter with the sampling-rate ratio and
+normalizes its gain. Exterior roots receive the bandwidth of their reflected
+radius instead of zero. The 400 Hz selection cutoff and existing numerical
+targets are unchanged. Calibration and evaluation retain the remaining
+known-resonance errors; increasing the cutoff cannot resolve the documented
+pair of conflicting selection cases. Measurement metadata identifies this
+formant algorithm as revision 3 and records its effective parameters and
+root rejection policy. Root sets must converge and pass finite, residual,
+conjugacy and coefficient-reconstruction checks before producing formants.
+Unresolved sets are missing estimates. Fixed numerical controls and unchanged
+calibration/evaluation scores accompany the change.
+
+An offline temporal-selection experiment adds 32 known-resonance transition
+and control fixtures, explicit missing states, paired-support scoring and a
+no-continuity ablation. It remains separate from application selection.
+
 ## 0.1.0-rc.4
 
 The About screen asks researchers who use openphon to cite it and gives

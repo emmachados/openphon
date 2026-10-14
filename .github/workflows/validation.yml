@@ -1,5 +1,5 @@
-# Praat agreement checks. Every synthetic and public track target is
-# enforced.
+# Raw-track Praat agreement gates are enforced. Shipped 400 Hz formant
+# diagnostics and known-pole errors are reported alongside them.
 
 name: Validation
 
@@ -57,11 +57,19 @@ jobs:
       - name: Install the reference stack
         run: pip install "$PARSELMOUTH" numpy
 
+      - name: Test displayed-slot scoring and missingness
+        working-directory: validation
+        run: python -m unittest test_formant_evidence test_formant_diagnosis test_root_solver_check test_formant_transitions test_temporal_formants test_temporal_formant_check test_temporal_formant_challenge
+
       - name: Core unit tests
         run: cargo test --release --manifest-path core/Cargo.toml
 
       - name: CLI unit tests
         run: cargo test --locked --manifest-path cli/Cargo.toml
+
+      - name: Native root acceptance controls
+        working-directory: validation
+        run: python root_solver_check.py --out root_solver_check.json
 
       - name: Synthesise the benchmark tiers
         working-directory: validation
@@ -88,14 +96,26 @@ jobs:
 
       # The formant-error grid is synthesised, so its ground truth travels
       # with it and the whole tier is reproducible here. It is reported
-      # rather than gated: it measures error against known poles, which is
-      # a property of LPC formant analysis at these settings rather than of
-      # this implementation, and a threshold on it would be arbitrary.
+      # with raw and shipped 400 Hz settings. It reports labelled-slot
+      # errors, missingness and separate pole-assignment diagnostics. No
+      # ground-truth threshold has been established for this tier.
       - name: Formant-error grid against known poles
         working-directory: validation
         run: |
           python synthesize.py --grid
           python formant_grid.py --out formant_grid.json | tee formant_grid.txt
+
+      - name: Diagnose bandwidth rejection against known poles
+        working-directory: validation
+        run: python formant_diagnosis.py --out formant_diagnosis.json
+
+      - name: Fixed temporal formant experiment
+        working-directory: validation
+        run: python temporal_formant_check.py --out temporal_formant_check.json
+
+      - name: Broader known-resonance challenge
+        working-directory: validation
+        run: python temporal_formant_challenge.py --screen temporal_formant_check.json --out temporal_formant_challenge.json
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -105,6 +125,10 @@ jobs:
             validation/compare_report.json
             validation/formant_grid.json
             validation/formant_grid.txt
+            validation/formant_diagnosis.json
+            validation/root_solver_check.json
+            validation/temporal_formant_check.json
+            validation/temporal_formant_challenge.json
             validation/voice_quality_report.txt
             validation/spectral_report.txt
 
@@ -138,7 +162,7 @@ jobs:
 
       - name: Test release evidence integrity checks
         working-directory: validation
-        run: python -m unittest test_release_check test_audio_identity test_sample_public test_fetch_public
+        run: python -m unittest test_release_check test_audio_identity test_sample_public test_fetch_public test_formant_evidence test_formant_diagnosis
 
       - name: Regenerate release evidence from verified audio and fresh references
         working-directory: validation
@@ -161,7 +185,14 @@ jobs:
             sed -n '/aggregate (public/,/^$/p' public_run.txt || true
             echo '```'
             echo
-            echo "Voicing, F0 and formant gates all block."
+            echo "Raw-track voicing, F0 and formant gates all block."
+            echo
+            echo "### Shipped 400 Hz formants"
+            echo "Same-target diagnostics are reported separately and do not change raw gates."
+            echo '```'
+            sed -n '/Shipped formants:/,/RESULT/p' public_run.txt || true
+            echo '```'
+            echo "The JSON also records each displayed slot's missingness and error tails."
             echo "See docs/VALIDATION.md for the scope of these measurements."
           } >> "$GITHUB_STEP_SUMMARY"
 

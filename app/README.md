@@ -34,8 +34,10 @@ flutter test integration_test --no-pub --no-uninstall -d <device-id>
 For Android, set `JAVA_HOME` to a Java 17 installation. Select a device
 identifier from `flutter devices`; do not assume a particular simulator
 or connected phone. Native integration tests require a supported target.
-The iOS simulator suite covers bridge calls, DSP, TextGrid I/O, playback
-and backup-exclusion readback.
+The native suite covers bridge calls, DSP, TextGrid I/O, pitch correction,
+playback, backup restoration, export readiness and backup-exclusion readback.
+The export test intercepts the share method channel to inspect prepared files;
+provider and system share interfaces need separate device checks.
 
 `--no-uninstall` retains the app data after native tests. Flutter 3.47's
 `flutter test` otherwise uninstalls the app by default; use the flag on a

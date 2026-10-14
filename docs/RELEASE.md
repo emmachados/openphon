@@ -1,6 +1,53 @@
 # Release status
 
-Version 0.1.0-rc.4, build 4. Test record dated 2 October 2026.
+Published version 0.1.0-rc.4, build 4. Its packaging and device test record is
+dated 2 October 2026. The source changes below have not been packaged or
+published as a new release.
+
+## Unreleased source verification
+
+On 14 October 2026, Flutter static analysis reported no issues and all 174
+unit and widget tests passed. Rust core tests passed 96 unit tests and two
+property tests, with one existing ignored test; all nine CLI tests passed.
+The validation harness passed 72 Python tests. The fixed candidate passed
+every raw-track gate on the 192-file evaluation subset. The voice-quality and
+spectral checks reproduced the retained text reports byte for byte.
+
+Two new native integration tests passed on Android 16 ARM64 and the
+iPhone 17 Pro simulator running iOS 26.5. The restore test checks a versioned
+archive with custom settings, annotations and pitch corrections, exact audio
+and sidecar bytes, identical measurements after restoration, and preservation
+of an existing recording. The export test renders the analysis interface,
+checks that export remains unavailable until native analysis completes, and
+verifies the CSV and JSON metadata prepared for sharing. It intercepts the
+share method channel; it does not test the operating system's share sheet or
+a document provider.
+
+The existing native pitch-correction test also passed on both simulators.
+It edits a track by touch, saves the corrections beside the WAV and confirms
+that they are reapplied when the recording is reopened.
+
+After the formant root-verification checks, six bridge tests and one
+measurement-export test passed on each platform. They include the new
+constant-audio regression and formant algorithm revision 3 export metadata,
+including its complete-root-set rejection policy.
+
+The new formant evidence compares raw candidates and the default 400 Hz
+bandwidth filter. Existing raw gates pass. The filtered output fails the
+same synthetic F2/F3 and public F3 agreement targets; these failures are
+explicit diagnostics. A control applying the same bandwidth filter to Praat
+passes the corresponding comparisons; known-resonance errors remain.
+The [validation report](VALIDATION.md) documents the preprocessing corrections
+and distinguishes agreement with Praat from error against known resonance
+frequencies.
+
+Formant algorithm revision 3 rejects unverified numerical root sets. Fixed
+polynomial controls pass; calibration, evaluation and known-pole benchmark
+scores and coverage reproduce revision 2. The offline temporal selector passes
+its first synthetic screen but fails the broader 19-signal challenge. Its
+F2 RMSE rises from 21.383 to 455.006 Hz without missing estimates, and removing
+continuity produces identical tracks across those signals. It is not enabled
+in the application. Reports and reproduction commands retain both outcomes.
 
 ## Downloads
 

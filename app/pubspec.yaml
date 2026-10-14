@@ -48,6 +48,8 @@ dependencies:
     sdk: flutter
   intl: any
   share_plus: ^13.2.1
+  archive: ^4.0.9
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:
@@ -76,6 +78,7 @@ dev_dependencies:
 flutter:
   generate: true
   assets:
+    - pubspec.yaml
     - assets/licenses/rust_licenses.json
 
   # The following line ensures that the Material Icons font is

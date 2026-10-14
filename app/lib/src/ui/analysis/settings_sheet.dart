@@ -49,6 +49,7 @@ class _SettingsForm extends StatefulWidget {
 class _SettingsFormState extends State<_SettingsForm> {
   late final Map<String, TextEditingController> _fields;
   late int _maxFormants;
+  String? _error;
 
   @override
   void initState() {
@@ -81,8 +82,29 @@ class _SettingsFormState extends State<_SettingsForm> {
     super.dispose();
   }
 
-  double _value(String key, double fallback) =>
-      double.tryParse(_fields[key]!.text.replaceAll(',', '.')) ?? fallback;
+  double _value(String key, double fallback) {
+    final value = double.tryParse(_fields[key]!.text.replaceAll(',', '.'));
+    if (value == null || !value.isFinite) {
+      throw const FormatException('Enter a finite number in every field.');
+    }
+    return value;
+  }
+
+  void _apply() {
+    try {
+      final next = _collect();
+      if (next.pitchCeilingHz <= next.pitchFloorHz) {
+        setState(
+          () => _error = AppLocalizations.of(context)!.invalidPitchRange,
+        );
+        return;
+      }
+      next.validate();
+      Navigator.pop(context, next);
+    } on FormatException catch (e) {
+      setState(() => _error = e.message);
+    }
+  }
 
   void _applyVoicePreset(double floor, double ceiling, double formantCeil) {
     setState(() {
@@ -107,8 +129,10 @@ class _SettingsFormState extends State<_SettingsForm> {
         s.spectrogramPreEmphasisHz,
       ).clamp(0, 1000),
       spectrogramMinTimeStepS:
-          (_value('minStep', s.spectrogramMinTimeStepS * 1000) / 1000)
-              .clamp(0.0005, 0.05),
+          (_value('minStep', s.spectrogramMinTimeStepS * 1000) / 1000).clamp(
+            0.0005,
+            0.05,
+          ),
       pitchFloorHz: _value('pitchFloor', s.pitchFloorHz).clamp(30, 800),
       pitchCeilingHz: _value('pitchCeil', s.pitchCeilingHz).clamp(60, 2000),
       maxFormants: _maxFormants,
@@ -229,6 +253,14 @@ class _SettingsFormState extends State<_SettingsForm> {
           ),
         ),
         const Divider(height: 1),
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
@@ -244,10 +276,7 @@ class _SettingsFormState extends State<_SettingsForm> {
                 child: Text(l10n.cancel),
               ),
               const SizedBox(width: 8),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, _collect()),
-                child: Text(l10n.apply),
-              ),
+              FilledButton(onPressed: _apply, child: Text(l10n.apply)),
             ],
           ),
         ),

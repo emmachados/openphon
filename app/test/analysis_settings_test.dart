@@ -33,6 +33,26 @@ void main() {
     expect(AnalysisSettings.fromJson('not json'), const AnalysisSettings());
   });
 
+  test('strict parsing rejects unsafe numerical settings', () {
+    for (final json in [
+      '{"maxFormants": 1e400}',
+      '{"maxFormants": 4.5}',
+      '{"pitchFloorHz": 500, "pitchCeilingHz": 100}',
+      '{"trackTimeStepS": 0}',
+      '{"pitchFloorHz": "100"}',
+    ]) {
+      expect(
+        () => AnalysisSettings.fromJson(json, strict: true),
+        throwsFormatException,
+        reason: json,
+      );
+    }
+    expect(
+      AnalysisSettings.fromJson('{"maxFormants": 1e400}'),
+      const AnalysisSettings(),
+    );
+  });
+
   test('differs helpers partition the fields', () {
     const base = AnalysisSettings();
     final sg = base.copyWith(dynamicRangeDb: 50);

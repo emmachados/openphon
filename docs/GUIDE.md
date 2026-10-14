@@ -28,9 +28,9 @@ system file picker: 16-, 24-, or 32-bit integer PCM and 32-bit float
 Files at any of the supported sample rates are analyzed as-is; stereo
 files are averaged to mono. Recordings load fully into memory, so files
 are capped at about 35 minutes at 48 kHz (proportionally longer at
-lower rates); trim longer field sessions before importing. A TextGrid with
-the same base name as the audio file is picked up automatically on
-import; a TextGrid can also be imported later from the annotation menu.
+lower rates); trim longer field sessions before importing. Import a matching
+TextGrid separately from the annotation menu. To transfer a complete library,
+use the backup and restore commands described below.
 
 ## Analysis
 
@@ -43,6 +43,13 @@ range) are set per recording from the settings sheet; the Adult male /
 Adult female / Child chips prefill the standard ranges. Defaults follow
 Praat's (10 ms step, F0 75–600 Hz, 5 formants below 5500 Hz, 25 ms
 formant window, pre-emphasis from 50 Hz).
+
+The effective analysis defaults are saved when a recording is first opened.
+Subsequent changes to the application's defaults do not change that recording.
+Analysis failures appear with a Retry action. Measurement export is enabled
+only after pitch, intensity and formants have finished successfully. A settings
+change invalidates affected tracks; late results from earlier settings cannot
+replace the current analysis.
 
 The [validation report](VALIDATION.md) describes agreement with Praat at
 specified settings, with the numerical results and their limits.
@@ -98,17 +105,57 @@ From the annotation menu:
 
 - **Export TextGrid** writes a Praat text-format TextGrid.
 - **Export measurements** writes a CSV with one row per interval of the
-  active tier: duration, mean/median F0, F1–F3 at the midpoint, mean
-  intensity. When pitch edits apply, a final `f0_edited_frames` column
+  active interval tier, or the first interval tier when a point tier is active:
+  duration, mean/median F0, F1–F3 at the midpoint, mean
+  intensity. Formants use the nearest frame inside the interval. Missing
+  measurements are empty cells, including F0 in an interval without voiced
+  frames. `f0_frames`, `voiced_f0_frames` and `intensity_frames` report the
+  contributing frame counts. For an even number of voiced frames, the median
+  averages the two middle values. When pitch edits apply, a final `f0_edited_frames` column
   counts the corrected frames in each interval.
+
+Each measurement CSV is accompanied by a `.metadata.json` file containing the
+analysis settings, source audio SHA-256 and bundled software version. An
+individual export records the exact measured annotation tier and pitch
+corrections, including edits still present in the editor. The bundled version
+identifies the source version; it does not identify build-number overrides
+supplied when packaging the application.
+
+The `formant_analysis` object records the effective 25 ms window, 50 Hz
+pre-emphasis, 400 Hz bandwidth cutoff and processing revision, alongside the
+chosen ceiling, frame step and maximum formant count. The cutoff is a
+candidate-selection heuristic: removing a candidate shifts the higher
+survivors down one numbered slot. The [validation report](VALIDATION.md)
+describes the measured consequences and the remaining high-F0 errors.
 
 On Android and iOS both exports open the system share sheet; on desktop they
 open a save dialog. The library screen's menu also offers **Export
-measurements (library)**: one CSV over every recording that has a
-TextGrid, with a leading `file` column, the same format as the CLI's
-batch mode. It measures at the default settings, so a recording whose
-pitch edits were made at other settings is left out and reported. Recordings are ordinary WAV files in the app's private
-storage; library tiles offer rename and delete.
+measurements (library)**. Choose an interval tier by name; the command uses
+each recording's saved settings and applies matching pitch corrections.
+It saves pending edits in the open recording before reading the library.
+The `file` column identifies the recording by its unique library-relative
+path; display names remain in the metadata. A report lists every excluded
+recording and its reason, including missing or ambiguous tiers, unreadable
+files and incompatible pitch corrections. The JSON also includes the source
+TextGrid and pitch-correction file checksums. Recordings without saved settings
+use the current application defaults, which are recorded in the metadata.
+
+## Backing up and restoring
+
+**Back up library…** saves the open recording's pending edits and produces
+`openphon_library.zip`. Its versioned `manifest.json` contains recording
+names, creation times in UTC, format metadata and complete effective analysis
+settings. The archive contains each WAV and its available TextGrid and pitch
+corrections, with SHA-256 checksums. Recordings without saved settings receive
+the current application defaults in the archive.
+
+**Restore library backup…** accepts that ZIP and verifies every checksum,
+audio header, annotation and pitch-correction file before adding recordings.
+Restoration creates new library entries and retains existing recordings,
+including entries with the same display name. A failed database update rolls
+back the new entries and removes only the files created by that restore.
+Earlier backups consisting of separate files are not ZIP archives; their WAVs
+and TextGrids can still be imported separately.
 
 ## Command line
 

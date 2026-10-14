@@ -3,8 +3,8 @@ import '../rust/api/core.dart' as rust;
 
 /// Per-interval measurement recipe, the in-app twin of the CLI's
 /// `openphon measure`: duration, mean/median F0 over voiced frames, F1–F3
-/// at the interval midpoint, mean intensity. 0 marks "no voiced frames" /
-/// "no formant value", matching the track CSVs and the CLI. When manual
+/// at the interval midpoint, mean intensity. Null marks an unavailable
+/// measurement; raw tracks retain their zero sentinel. When manual
 /// pitch edits apply, a final `f0_edited_frames` column counts the edited
 /// frames in each interval, as the CLI does.
 class IntervalMeasure {
@@ -16,18 +16,26 @@ class IntervalMeasure {
     required this.medianF0Hz,
     required this.fMidHz,
     required this.meanIntensityDb,
+    this.f0Frames = 0,
+    this.voicedF0Frames = 0,
+    this.intensityFrames = 0,
     this.f0EditedFrames = 0,
   });
 
   final String label;
   final double tminS;
   final double tmaxS;
-  final double meanF0Hz;
-  final double medianF0Hz;
+  final double? meanF0Hz;
+  final double? medianF0Hz;
 
-  /// F1..F3 at the midpoint frame (0 = missing).
-  final List<double> fMidHz;
-  final double meanIntensityDb;
+  /// F1..F3 at the nearest frame inside the interval (null = missing).
+  final List<double?> fMidHz;
+  final double? meanIntensityDb;
+
+  /// Finite F0 samples in the interval, including unvoiced zero samples.
+  final int f0Frames;
+  final int voicedF0Frames;
+  final int intensityFrames;
 
   /// Manually corrected F0 frames inside the interval.
   final int f0EditedFrames;
@@ -48,51 +56,64 @@ List<IntervalMeasure> measureIntervals(
     if (iv.text.isEmpty && !includeEmpty) continue;
 
     final voiced = <double>[];
+    var f0Frames = 0;
     var edited = 0;
     if (f0 != null) {
       for (var i = 0; i < f0.timesS.length; i++) {
         final t = f0.timesS[i];
-        if (t < iv.xmin || t >= iv.xmax) continue;
-        if (f0.f0Hz[i] > 0) voiced.add(f0.f0Hz[i]);
+        if (!t.isFinite || t < iv.xmin || t >= iv.xmax) continue;
+        final hz = f0.f0Hz[i];
+        if (hz.isFinite) {
+          f0Frames++;
+          if (hz > 0) voiced.add(hz);
+        }
         if (f0Edited != null && i < f0Edited.length && f0Edited[i]) edited++;
       }
     }
-    var meanF0 = 0.0;
-    var medianF0 = 0.0;
+    double? meanF0;
+    double? medianF0;
     if (voiced.isNotEmpty) {
       meanF0 = voiced.reduce((a, b) => a + b) / voiced.length;
       voiced.sort();
-      medianF0 = voiced[voiced.length ~/ 2];
+      final middle = voiced.length ~/ 2;
+      medianF0 = voiced.length.isOdd
+          ? voiced[middle]
+          : (voiced[middle - 1] + voiced[middle]) / 2;
     }
 
-    var meanDb = 0.0;
+    double? meanDb;
+    var intensityFrames = 0;
     if (intensity != null) {
       var sum = 0.0;
-      var n = 0;
       for (var i = 0; i < intensity.timesS.length; i++) {
         final t = intensity.timesS[i];
         final v = intensity.db[i];
-        if (t >= iv.xmin && t < iv.xmax && v.isFinite) {
+        if (t.isFinite && t >= iv.xmin && t < iv.xmax && v.isFinite) {
           sum += v;
-          n++;
+          intensityFrames++;
         }
       }
-      if (n > 0) meanDb = sum / n;
+      if (intensityFrames > 0) meanDb = sum / intensityFrames;
     }
 
-    final fMid = List<double>.filled(3, 0);
+    final fMid = List<double?>.filled(3, null);
     if (formants != null && formants.timesS.isNotEmpty) {
       final mid = 0.5 * (iv.xmin + iv.xmax);
-      var best = 0;
-      for (var i = 1; i < formants.timesS.length; i++) {
-        if ((formants.timesS[i] - mid).abs() <
-            (formants.timesS[best] - mid).abs()) {
+      int? best;
+      for (var i = 0; i < formants.timesS.length; i++) {
+        final t = formants.timesS[i];
+        if (!t.isFinite || t < iv.xmin || t >= iv.xmax) continue;
+        if (best == null ||
+            (t - mid).abs() < (formants.timesS[best] - mid).abs()) {
           best = i;
         }
       }
-      final n = formants.maxFormants;
-      for (var k = 0; k < 3 && k < n; k++) {
-        fMid[k] = formants.formantsHz[best * n + k];
+      if (best != null) {
+        final n = formants.maxFormants;
+        for (var k = 0; k < 3 && k < n; k++) {
+          final hz = formants.formantsHz[best * n + k];
+          if (hz.isFinite && hz > 0) fMid[k] = hz;
+        }
       }
     }
 
@@ -105,6 +126,9 @@ List<IntervalMeasure> measureIntervals(
         medianF0Hz: medianF0,
         fMidHz: fMid,
         meanIntensityDb: meanDb,
+        f0Frames: f0Frames,
+        voicedF0Frames: voiced.length,
+        intensityFrames: intensityFrames,
         f0EditedFrames: edited,
       ),
     );
@@ -113,7 +137,7 @@ List<IntervalMeasure> measureIntervals(
 }
 
 String _csvEscape(String s) =>
-    s.contains(',') || s.contains('"') || s.contains('\n')
+    s.contains(',') || s.contains('"') || s.contains('\n') || s.contains('\r')
     ? '"${s.replaceAll('"', '""')}"'
     : s;
 
@@ -140,14 +164,15 @@ String batchMeasurementsCsv(List<FileMeasures> files) {
   final edited = files.any((f) => f.pitchEdited);
   final b = StringBuffer(
     'file,tier,label,tmin_s,tmax_s,duration_s,mean_f0_hz,median_f0_hz,'
-    'f1_mid_hz,f2_mid_hz,f3_mid_hz,mean_intensity_db'
+    'f1_mid_hz,f2_mid_hz,f3_mid_hz,mean_intensity_db,'
+    'f0_frames,voiced_f0_frames,intensity_frames'
     '${edited ? ',f0_edited_frames' : ''}\n',
   );
   for (final f in files) {
-    final single = measurementsCsv(f.tierName, f.rows, editedColumn: edited);
-    for (final line in single.split('\n').skip(1)) {
-      if (line.isEmpty) continue;
-      b.writeln('${_csvEscape(f.file)},$line');
+    for (final row in f.rows) {
+      b.writeln(
+        '${_csvEscape(f.file)},${_measurementRow(f.tierName, row, edited)}',
+      );
     }
   }
   return b.toString();
@@ -163,26 +188,34 @@ String measurementsCsv(
 }) {
   final b = StringBuffer(
     'tier,label,tmin_s,tmax_s,duration_s,mean_f0_hz,median_f0_hz,'
-    'f1_mid_hz,f2_mid_hz,f3_mid_hz,mean_intensity_db'
+    'f1_mid_hz,f2_mid_hz,f3_mid_hz,mean_intensity_db,'
+    'f0_frames,voiced_f0_frames,intensity_frames'
     '${editedColumn ? ',f0_edited_frames' : ''}\n',
   );
   for (final m in rows) {
-    b.writeln(
-      [
-        _csvEscape(tierName),
-        _csvEscape(m.label),
-        m.tminS.toStringAsFixed(6),
-        m.tmaxS.toStringAsFixed(6),
-        m.durationS.toStringAsFixed(6),
-        m.meanF0Hz.toStringAsFixed(3),
-        m.medianF0Hz.toStringAsFixed(3),
-        m.fMidHz[0].toStringAsFixed(3),
-        m.fMidHz[1].toStringAsFixed(3),
-        m.fMidHz[2].toStringAsFixed(3),
-        m.meanIntensityDb.toStringAsFixed(3),
-        if (editedColumn) '${m.f0EditedFrames}',
-      ].join(','),
-    );
+    b.writeln(_measurementRow(tierName, m, editedColumn));
   }
   return b.toString();
 }
+
+String _measurementRow(String tierName, IntervalMeasure m, bool editedColumn) =>
+    [
+      _csvEscape(tierName),
+      _csvEscape(m.label),
+      m.tminS.toStringAsFixed(6),
+      m.tmaxS.toStringAsFixed(6),
+      m.durationS.toStringAsFixed(6),
+      _measurementCell(m.meanF0Hz),
+      _measurementCell(m.medianF0Hz),
+      _measurementCell(m.fMidHz[0]),
+      _measurementCell(m.fMidHz[1]),
+      _measurementCell(m.fMidHz[2]),
+      _measurementCell(m.meanIntensityDb),
+      '${m.f0Frames}',
+      '${m.voicedF0Frames}',
+      '${m.intensityFrames}',
+      if (editedColumn) '${m.f0EditedFrames}',
+    ].join(',');
+
+String _measurementCell(double? value) =>
+    value != null && value.isFinite ? value.toStringAsFixed(3) : '';

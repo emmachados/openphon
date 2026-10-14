@@ -136,9 +136,9 @@ void main() {
     expect(rows.map((r) => r.f0EditedFrames), [2, 0]);
     expect(rows[0].meanF0Hz, 200);
     final plain = measurementsCsv('v', rows).split('\n').first;
-    expect(plain, endsWith(',mean_intensity_db'));
+    expect(plain, endsWith(',intensity_frames'));
     final csv = measurementsCsv('v', rows, editedColumn: true).split('\n');
-    expect(csv[0], endsWith(',mean_intensity_db,f0_edited_frames'));
+    expect(csv[0], endsWith(',intensity_frames,f0_edited_frames'));
     expect(csv[1], endsWith(',2'));
     final batch = batchMeasurementsCsv([
       FileMeasures(file: 'x', tierName: 'v', rows: rows, pitchEdited: true),

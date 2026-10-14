@@ -79,8 +79,13 @@ class PitchEditBar extends StatelessWidget {
                   TextButton(
                     onPressed: () => _confirmDiscard(context),
                     child: Text(l10n.discardPitchEdits),
-                  )
-                else ...[
+                  ),
+                if (c.pitchEditsMismatch)
+                  TextButton(
+                    onPressed: c.restorePitchSettings,
+                    child: Text(l10n.restorePitchSettings),
+                  ),
+                if (!blocked) ...[
                   IconButton(
                     icon: const Icon(Icons.keyboard_double_arrow_down),
                     tooltip: l10n.octaveDownTooltip,

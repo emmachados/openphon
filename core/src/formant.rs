@@ -20,9 +20,9 @@ pub struct FormantParams {
     pub window_s: f64,
     /// 6 dB/oct pre-emphasis above this frequency.
     pub pre_emphasis_hz: f64,
-    /// Candidates broader than this are discarded as spurious poles
-    /// (spectral-tilt and filler poles typically have bandwidths of
-    /// several hundred Hz; real formants rarely exceed ~300 Hz).
+    /// Heuristic bandwidth ceiling for candidate selection. Surviving poles
+    /// are sorted and compacted; rejection can change their numbered slots.
+    /// A narrow bandwidth alone does not establish resonance identity.
     pub max_bandwidth_hz: f64,
 }
 
@@ -54,32 +54,38 @@ pub struct FormantTrack {
 }
 
 const HALF_TAPS: i64 = 32;
-const TAPS: usize = 2 * HALF_TAPS as usize;
 
 /// Windowed-sinc kernel coefficient at offset `x` (input samples).
-fn resample_kernel(x: f64, cutoff: f64) -> f64 {
+fn resample_kernel(x: f64, cutoff: f64, half_taps: i64) -> f64 {
     let sinc = if x.abs() < 1e-12 {
         cutoff
     } else {
         (std::f64::consts::PI * cutoff * x).sin() / (std::f64::consts::PI * x)
     };
     // Hann taper over the tap span.
-    let w = 0.5 + 0.5 * (std::f64::consts::PI * x / HALF_TAPS as f64).cos();
+    let w = 0.5 + 0.5 * (std::f64::consts::PI * x / half_taps as f64).cos();
     sinc * w
 }
 
 /// Windowed-sinc resampling (anti-aliased for downsampling).
 ///
 /// Integer sample rates take a polyphase fast path: the fractional output
-/// positions repeat with period `sr_out / gcd`, so each phase's 64 kernel
+/// positions repeat with period `sr_out / gcd`, so each phase's kernel
 /// coefficients are computed once instead of two transcendentals per tap
 /// per output sample (the naive form dominated formant tracking).
+/// When downsampling, the sinc and its Hann window both expand by
+/// `sr_in / sr_out`. Keeping a fixed number of input taps would shorten
+/// the low-pass filter at higher input rates and admit aliased energy.
+/// This is the rate scaling in Smith, *Physical Audio Signal Processing*,
+/// https://www.dsprelated.com/freebooks/pasp/Windowed_Sinc_Interpolation.html.
 pub fn resample(samples: &[f64], sr_in: f64, sr_out: f64) -> Vec<f64> {
     if (sr_in - sr_out).abs() < 1e-9 {
         return samples.to_vec();
     }
     // Cutoff relative to the input rate, leaving a little transition band.
     let cutoff = (sr_out / sr_in).min(1.0) * 0.95;
+    let half_taps = (HALF_TAPS as f64 / (sr_out / sr_in).min(1.0)).ceil() as i64;
+    let taps = (2 * half_taps) as usize;
     let n_out = ((samples.len() as f64) * sr_out / sr_in).floor() as usize;
     let (si, so) = (sr_in.round(), sr_out.round());
     if (sr_in - si).abs() < 1e-9 && (sr_out - so).abs() < 1e-9 && si >= 1.0 && so >= 1.0 {
@@ -88,11 +94,11 @@ pub fn resample(samples: &[f64], sr_in: f64, sr_out: f64) -> Vec<f64> {
         let q = (si as u64 / g) as usize;
         // Degenerate ratios would need an enormous coefficient table; the
         // generic path handles them (never hit by real sample rates).
-        if p <= 65536 {
-            return resample_polyphase(samples, p, q, cutoff, n_out);
+        if p <= 65536 && p.checked_mul(taps).is_some_and(|n| n <= 1_048_576) {
+            return resample_polyphase(samples, p, q, cutoff, half_taps, n_out);
         }
     }
-    resample_generic(samples, sr_in, sr_out, cutoff, n_out)
+    resample_generic(samples, sr_in, sr_out, cutoff, half_taps, n_out)
 }
 
 fn gcd(mut a: u64, mut b: u64) -> u64 {
@@ -102,30 +108,43 @@ fn gcd(mut a: u64, mut b: u64) -> u64 {
     a
 }
 
-fn resample_polyphase(samples: &[f64], p: usize, q: usize, cutoff: f64, n_out: usize) -> Vec<f64> {
+fn resample_polyphase(
+    samples: &[f64],
+    p: usize,
+    q: usize,
+    cutoff: f64,
+    half_taps: i64,
+    n_out: usize,
+) -> Vec<f64> {
     // Output index k sits at input position t = k*q/p = a*q + b*q/p with
     // a = k/p, b = k%p: the fractional part depends only on the phase b.
-    let mut taps = vec![0.0f64; p * TAPS];
+    let n_taps = (2 * half_taps) as usize;
+    let mut taps = vec![0.0f64; p * n_taps];
     let mut base = vec![0i64; p];
     for b in 0..p {
         let t = (b * q) as f64 / p as f64;
         let j0 = t.floor();
         base[b] = j0 as i64;
-        for i in 0..TAPS {
-            let m = i as i64 - HALF_TAPS + 1; // j = j0 + m
-            taps[b * TAPS + i] = resample_kernel(t - (j0 + m as f64), cutoff);
+        for i in 0..n_taps {
+            let m = i as i64 - half_taps + 1; // j = j0 + m
+            taps[b * n_taps + i] = resample_kernel(t - (j0 + m as f64), cutoff, half_taps);
+        }
+        let row = &mut taps[b * n_taps..(b + 1) * n_taps];
+        let gain = row.iter().sum::<f64>();
+        for tap in row {
+            *tap /= gain;
         }
     }
     let n = samples.len() as i64;
     let mut out = Vec::with_capacity(n_out);
     for k in 0..n_out {
         let (a, b) = (k / p, k % p);
-        let start = (a * q) as i64 + base[b] - HALF_TAPS + 1;
-        let row = &taps[b * TAPS..(b + 1) * TAPS];
+        let start = (a * q) as i64 + base[b] - half_taps + 1;
+        let row = &taps[b * n_taps..(b + 1) * n_taps];
         let mut acc = 0.0;
-        if start >= 0 && start + TAPS as i64 <= n {
-            let seg = &samples[start as usize..start as usize + TAPS];
-            for i in 0..TAPS {
+        if start >= 0 && start + n_taps as i64 <= n {
+            let seg = &samples[start as usize..start as usize + n_taps];
+            for i in 0..n_taps {
                 acc += seg[i] * row[i];
             }
         } else {
@@ -148,6 +167,7 @@ fn resample_generic(
     sr_in: f64,
     sr_out: f64,
     cutoff: f64,
+    half_taps: i64,
     n_out: usize,
 ) -> Vec<f64> {
     let mut out = Vec::with_capacity(n_out);
@@ -155,13 +175,16 @@ fn resample_generic(
         let t = k as f64 * sr_in / sr_out; // position in input samples
         let j0 = t.floor() as i64;
         let mut acc = 0.0;
-        for j in (j0 - HALF_TAPS + 1)..=(j0 + HALF_TAPS) {
+        let mut gain = 0.0;
+        for j in (j0 - half_taps + 1)..=(j0 + half_taps) {
+            let weight = resample_kernel(t - j as f64, cutoff, half_taps);
+            gain += weight;
             if j < 0 || j >= samples.len() as i64 {
                 continue;
             }
-            acc += samples[j as usize] * resample_kernel(t - j as f64, cutoff);
+            acc += samples[j as usize] * weight;
         }
-        out.push(acc);
+        out.push(acc / gain);
     }
     out
 }
@@ -198,24 +221,195 @@ pub fn burg(x: &[f64], order: usize) -> Vec<f64> {
     a[1..].to_vec()
 }
 
-/// Durand–Kerner root finding for a real monic polynomial
-/// z^p + c[0] z^(p-1) + ... + c[p-1].
-pub fn poly_roots(coeffs: &[f64]) -> Vec<Complex64> {
-    let p = coeffs.len();
-    if p == 0 {
-        return Vec::new();
-    }
-    let eval = |z: Complex64| -> Complex64 {
-        let mut v = Complex64::new(1.0, 0.0);
-        for &c in coeffs {
-            v = v * z + Complex64::new(c, 0.0);
+/// Numerical checks on a complete root set. Small backward error alone does
+/// not establish small root error when the polynomial is ill-conditioned.
+#[derive(Debug, Clone, Default)]
+pub struct RootDiagnostics {
+    pub iterations: usize,
+    pub max_relative_step: Option<f64>,
+    pub max_relative_residual: Option<f64>,
+    pub max_conjugate_mismatch: Option<f64>,
+    pub unpaired_nonreal_roots: usize,
+    pub coefficient_backward_error: Option<f64>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RootFailureReason {
+    NonFiniteCoefficients,
+    SingularIteration,
+    NonFiniteIteration,
+    DidNotConverge,
+    NonFiniteValidation,
+    ResidualTooLarge,
+    UnpairedConjugates,
+    InconsistentPolynomial,
+}
+
+#[derive(Debug)]
+pub struct RootFailure {
+    pub reason: RootFailureReason,
+    pub diagnostics: RootDiagnostics,
+}
+
+#[derive(Debug)]
+pub struct RootSolution {
+    pub roots: Vec<Complex64>,
+    pub diagnostics: RootDiagnostics,
+}
+
+// Retain the original iteration budget and step tolerance. The other checks
+// use degree-scaled floating-point allowances, not acoustic error thresholds.
+const ROOT_ITERATIONS: usize = 200;
+const ROOT_STEP_TOLERANCE: f64 = 1e-12;
+const ROOT_CONJUGATE_TOLERANCE: f64 = 8.0 * ROOT_STEP_TOLERANCE;
+
+fn complex_is_finite(z: Complex64) -> bool {
+    z.re.is_finite() && z.im.is_finite() && z.norm().is_finite()
+}
+
+fn polynomial_value(coeffs: &[f64], z: Complex64) -> Complex64 {
+    coeffs.iter().fold(Complex64::new(1.0, 0.0), |v, c| {
+        v * z + Complex64::new(*c, 0.0)
+    })
+}
+
+fn inspect_roots(coeffs: &[f64], roots: &[Complex64], diagnostics: &mut RootDiagnostics) {
+    let mut residual = 0.0f64;
+    for &root in roots {
+        let scale = coeffs.iter().fold(1.0, |v, c| v * root.norm() + c.abs());
+        let value = polynomial_value(coeffs, root).norm();
+        let relative = if scale == 0.0 && value == 0.0 {
+            0.0
+        } else {
+            value / scale
+        };
+        if !scale.is_finite() || !relative.is_finite() {
+            diagnostics.max_relative_residual = Some(f64::INFINITY);
+            return;
         }
-        v
+        residual = residual.max(relative);
+    }
+    diagnostics.max_relative_residual = Some(residual);
+
+    // A real polynomial's nonreal roots must occur in conjugate pairs. Match
+    // each root once; a nearest-neighbour check without ownership can reuse a
+    // partner and accept the wrong number of upper-half-plane roots.
+    let mut used = vec![false; roots.len()];
+    let mut conjugate_error = 0.0f64;
+    for (i, root) in roots.iter().enumerate() {
+        if used[i] {
+            continue;
+        }
+        used[i] = true;
+        if root.im.abs() <= ROOT_CONJUGATE_TOLERANCE * root.norm().max(1.0) {
+            continue;
+        }
+        let partner = roots
+            .iter()
+            .enumerate()
+            .filter(|(j, other)| !used[*j] && root.im.signum() != other.im.signum())
+            .map(|(j, other)| {
+                (
+                    j,
+                    (root.conj() - other).norm() / root.norm().max(other.norm()).max(1.0),
+                )
+            })
+            .min_by(|a, b| a.1.total_cmp(&b.1));
+        if let Some((j, error)) = partner {
+            used[j] = true;
+            conjugate_error = conjugate_error.max(error);
+        } else {
+            diagnostics.unpaired_nonreal_roots += 1;
+        }
+    }
+    diagnostics.max_conjugate_mismatch = Some(conjugate_error);
+
+    // Check the complete multiset, not just individual residuals: duplicate
+    // copies of one exact root also have zero residual. Reconstruct prod(z-r)
+    // and compare all coefficients in the infinity norm. See the definition
+    // of polynomial backward error in De Teran, Dopico and Perez (2014), sec. 3:
+    // https://eprints.maths.manchester.ac.uk/2162/1/berr_rootfiedlers-mims.pdf
+    let mut reconstructed = vec![Complex64::new(1.0, 0.0)];
+    for root in roots {
+        reconstructed.push(Complex64::new(0.0, 0.0));
+        for i in (1..reconstructed.len()).rev() {
+            let product = root * reconstructed[i - 1];
+            reconstructed[i] -= product;
+        }
+    }
+    let scale = coeffs.iter().fold(1.0f64, |v, c| v.max(c.abs()));
+    let mut error = 0.0f64;
+    for (got, expected) in reconstructed[1..].iter().zip(coeffs) {
+        let difference = (got - Complex64::new(*expected, 0.0)).norm();
+        if !difference.is_finite() {
+            error = f64::INFINITY;
+            break;
+        }
+        error = error.max(difference / scale);
+    }
+    diagnostics.coefficient_backward_error = Some(error);
+}
+
+fn root_validation_failure(
+    degree: usize,
+    diagnostics: &RootDiagnostics,
+) -> Option<RootFailureReason> {
+    let (Some(residual), Some(conjugate_mismatch), Some(coefficient_error)) = (
+        diagnostics.max_relative_residual,
+        diagnostics.max_conjugate_mismatch,
+        diagnostics.coefficient_backward_error,
+    ) else {
+        return Some(RootFailureReason::NonFiniteValidation);
     };
+    if !residual.is_finite() {
+        return Some(RootFailureReason::NonFiniteValidation);
+    }
+    // Horner evaluation is linear in degree; reconstruction uses quadratic
+    // work. These generous roundoff allowances do not certify forward error.
+    let n = degree.max(1) as f64;
+    if residual > 64.0 * n * f64::EPSILON {
+        return Some(RootFailureReason::ResidualTooLarge);
+    }
+    if diagnostics.unpaired_nonreal_roots != 0
+        || !conjugate_mismatch.is_finite()
+        || conjugate_mismatch > ROOT_CONJUGATE_TOLERANCE
+    {
+        return Some(RootFailureReason::UnpairedConjugates);
+    }
+    if !coefficient_error.is_finite() {
+        return Some(RootFailureReason::NonFiniteValidation);
+    }
+    if coefficient_error > 64.0 * n * n * f64::EPSILON {
+        return Some(RootFailureReason::InconsistentPolynomial);
+    }
+    None
+}
+
+/// Checked Durand–Kerner roots of z^p + c[0] z^(p-1) + ... + c[p-1].
+/// A complete finite, converged root set must pass residual, real-polynomial
+/// conjugacy and coefficient-reconstruction checks. Unresolved sets are errors;
+/// the returned diagnostics do not claim a bound on individual root error.
+pub fn checked_poly_roots(coeffs: &[f64]) -> Result<RootSolution, RootFailure> {
+    let p = coeffs.len();
+    let mut diagnostics = RootDiagnostics::default();
+    if coeffs.iter().any(|c| !c.is_finite()) {
+        return Err(RootFailure {
+            reason: RootFailureReason::NonFiniteCoefficients,
+            diagnostics,
+        });
+    }
+    if p == 0 {
+        return Ok(RootSolution {
+            roots: Vec::new(),
+            diagnostics,
+        });
+    }
     // Standard initialization: powers of a non-real seed of modulus ≈ 1.
     let seed = Complex64::new(0.4, 0.9);
     let mut roots: Vec<Complex64> = (0..p).map(|k| seed.powu(k as u32 + 1)).collect();
-    for _ in 0..200 {
+    let mut converged = false;
+    for iteration in 1..=ROOT_ITERATIONS {
+        diagnostics.iterations = iteration;
         let mut max_step = 0.0f64;
         for i in 0..p {
             let mut denom = Complex64::new(1.0, 0.0);
@@ -224,18 +418,57 @@ pub fn poly_roots(coeffs: &[f64]) -> Vec<Complex64> {
                     denom *= roots[i] - roots[j];
                 }
             }
-            if denom.norm() < 1e-30 {
-                continue;
+            if !complex_is_finite(denom) {
+                return Err(RootFailure {
+                    reason: RootFailureReason::NonFiniteIteration,
+                    diagnostics,
+                });
             }
-            let step = eval(roots[i]) / denom;
+            if denom.norm() < 1e-30 {
+                return Err(RootFailure {
+                    reason: RootFailureReason::SingularIteration,
+                    diagnostics,
+                });
+            }
+            let step = polynomial_value(coeffs, roots[i]) / denom;
             roots[i] -= step;
-            max_step = max_step.max(step.norm());
+            if !complex_is_finite(step) || !complex_is_finite(roots[i]) {
+                return Err(RootFailure {
+                    reason: RootFailureReason::NonFiniteIteration,
+                    diagnostics,
+                });
+            }
+            max_step = max_step.max(step.norm() / roots[i].norm().max(1.0));
         }
-        if max_step < 1e-12 {
+        diagnostics.max_relative_step = Some(max_step);
+        if max_step < ROOT_STEP_TOLERANCE {
+            converged = true;
             break;
         }
     }
-    roots
+    inspect_roots(coeffs, &roots, &mut diagnostics);
+    let reason = if !converged {
+        Some(RootFailureReason::DidNotConverge)
+    } else {
+        root_validation_failure(p, &diagnostics)
+    };
+    if let Some(reason) = reason {
+        Err(RootFailure {
+            reason,
+            diagnostics,
+        })
+    } else {
+        Ok(RootSolution { roots, diagnostics })
+    }
+}
+
+/// Roots of a real monic polynomial, or an empty vector if the numerical solve
+/// is unresolved. Use `checked_poly_roots` for the failure reason. Rejecting the
+/// entire set prevents unverified roots from becoming displayed formants.
+pub fn poly_roots(coeffs: &[f64]) -> Vec<Complex64> {
+    checked_poly_roots(coeffs)
+        .map(|solution| solution.roots)
+        .unwrap_or_default()
 }
 
 fn gaussian_window(n: usize) -> Vec<f64> {
@@ -248,9 +481,31 @@ fn gaussian_window(n: usize) -> Vec<f64> {
         .collect()
 }
 
+/// Convert a pole to frequency and bandwidth. Reflecting an exterior pole to
+/// 1/conj(z) preserves its angle and replaces its radius with its reciprocal:
+/// B = -(sample_rate/pi) ln(min(r, 1/r)) = (sample_rate/pi) abs(ln(r)).
+/// See the published LPC conversion description (not implementation source):
+/// https://www.fon.hum.uva.nl/praat/manual/LPC__To_Formant.html
+fn formant_from_root(root: Complex64, sample_rate: f64) -> (f64, f64) {
+    let frequency = root.arg() * sample_rate / (2.0 * std::f64::consts::PI);
+    let bandwidth = (sample_rate / std::f64::consts::PI) * root.norm().ln().abs();
+    (frequency, bandwidth)
+}
+
 pub fn track_formants(samples: &[f64], sample_rate: u32, params: &FormantParams) -> FormantTrack {
     let sr_work = 2.0 * params.ceiling_hz;
-    let work = resample(samples, sample_rate as f64, sr_work);
+    // Remove constant input level before resampling. Even a normalized
+    // polyphase filter has floating-point phase differences: Burg is scale
+    // invariant and would otherwise fit poles to that residual on DC input.
+    let anchor = samples.first().copied().unwrap_or(0.0);
+    let mut centered: Vec<f64> = samples.iter().map(|s| s - anchor).collect();
+    if !centered.is_empty() {
+        let mean = centered.iter().sum::<f64>() / centered.len() as f64;
+        for s in &mut centered {
+            *s -= mean;
+        }
+    }
+    let work = resample(&centered, sample_rate as f64, sr_work);
     let mut source = work;
     crate::spectrogram::pre_emphasize(&mut source, sr_work, params.pre_emphasis_hz);
 
@@ -263,15 +518,17 @@ pub fn track_formants(samples: &[f64], sample_rate: u32, params: &FormantParams)
     let mut frames = Vec::new();
     let mut start = 0usize;
     while start + win_n <= source.len() {
+        // Center before windowing: windowing a constant creates a nonconstant
+        // signal. Subtract an anchor first so constant frames become exactly
+        // zero even when summing their original level would accumulate error.
+        let anchor = source[start];
         let mut frame: Vec<f64> = source[start..start + win_n]
             .iter()
-            .zip(&window)
-            .map(|(s, w)| s * w)
+            .map(|s| s - anchor)
             .collect();
-        // Remove DC so a constant offset does not consume a pole.
         let mean = frame.iter().sum::<f64>() / frame.len() as f64;
-        for v in &mut frame {
-            *v -= mean;
+        for (v, w) in frame.iter_mut().zip(&window) {
+            *v = (*v - mean) * w;
         }
 
         let time_s = (start + win_n / 2) as f64 / sr_work;
@@ -291,11 +548,7 @@ pub fn track_formants(samples: &[f64], sample_rate: u32, params: &FormantParams)
         let mut cands: Vec<(f64, f64)> = roots
             .iter()
             .filter(|z| z.im > 0.0)
-            .map(|z| {
-                let freq = z.arg() * sr_work / (2.0 * std::f64::consts::PI);
-                let bw = -(sr_work / std::f64::consts::PI) * z.norm().ln().min(0.0);
-                (freq, bw)
-            })
+            .map(|z| formant_from_root(*z, sr_work))
             .filter(|(f, b)| {
                 *f > 50.0 && *f < params.ceiling_hz - 50.0 && *b <= params.max_bandwidth_hz
             })
@@ -330,7 +583,8 @@ mod tests {
         let cutoff = (sr_out / sr_in).min(1.0) * 0.95;
         let n_out = ((s.len() as f64) * sr_out / sr_in).floor() as usize;
         let fast = resample(&s, sr_in, sr_out);
-        let slow = resample_generic(&s, sr_in, sr_out, cutoff, n_out);
+        let half_taps = (HALF_TAPS as f64 / (sr_out / sr_in)).ceil() as i64;
+        let slow = resample_generic(&s, sr_in, sr_out, cutoff, half_taps, n_out);
         assert_eq!(fast.len(), slow.len());
         for (i, (a, b)) in fast.iter().zip(&slow).enumerate() {
             assert!((a - b).abs() < 1e-9, "sample {i}: {a} vs {b}");
@@ -365,6 +619,53 @@ mod tests {
     }
 
     #[test]
+    fn downsampling_preserves_passband_and_rejects_aliases_across_input_rates() {
+        for sr in [16000, 44100, 48000, 96000, 192000] {
+            for (frequency, wanted_rms, tolerance) in [
+                (4500.0, std::f64::consts::FRAC_1_SQRT_2, 0.005),
+                (5700.0, 0.0, 0.005),
+            ] {
+                let s: Vec<f64> = (0..sr / 4)
+                    .map(|i| (2.0 * std::f64::consts::PI * frequency * i as f64 / sr as f64).sin())
+                    .collect();
+                let out = resample(&s, sr as f64, 11000.0);
+                let interior = &out[200..out.len() - 200];
+                let rms =
+                    (interior.iter().map(|v| v * v).sum::<f64>() / interior.len() as f64).sqrt();
+                assert!(
+                    (rms - wanted_rms).abs() < tolerance,
+                    "{frequency} Hz at {sr} samples/s: RMS {rms}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn resampling_has_unity_dc_gain_across_phases() {
+        for sr in [16000, 44100, 48000, 96000, 192000] {
+            let out = resample(&vec![0.375; sr / 10], sr as f64, 11000.0);
+            assert!(out[100..out.len() - 100]
+                .iter()
+                .all(|v| (v - 0.375).abs() < 1e-13));
+        }
+    }
+
+    #[test]
+    fn dc_input_does_not_turn_resampling_roundoff_into_formants() {
+        for sr in [16000, 44100, 48000, 96000, 192000] {
+            let track = track_formants(&vec![0.1; sr as usize / 5], sr, &Default::default());
+            assert!(!track.frames.is_empty());
+            assert!(
+                track
+                    .frames
+                    .iter()
+                    .all(|frame| frame.formants_hz.is_empty()),
+                "constant signal at {sr} samples/s produced formants"
+            );
+        }
+    }
+
+    #[test]
     fn burg_recovers_ar2_coefficients() {
         // AR(2): x[n] = 1.5 x[n-1] - 0.9 x[n-2] + e[n], e = unit impulse.
         let mut x = vec![0.0f64; 2048];
@@ -389,6 +690,141 @@ mod tests {
         assert!(near(mods[0], -3.0, 0.0));
         assert!(near(mods[3], 2.0, 0.0));
         assert!(mods[1].1.abs() > 0.999 && mods[1].0.abs() < 1e-6);
+    }
+
+    fn polynomial_from_resonances(
+        frequencies: &[f64],
+        bandwidth: f64,
+    ) -> (Vec<f64>, Vec<Complex64>) {
+        let radius = (-std::f64::consts::PI * bandwidth / 11000.0).exp();
+        let mut coefficients = vec![1.0];
+        let mut roots = Vec::new();
+        for &frequency in frequencies {
+            let root =
+                Complex64::from_polar(radius, 2.0 * std::f64::consts::PI * frequency / 11000.0);
+            roots.extend([root, root.conj()]);
+            let quadratic = [1.0, -2.0 * root.re, radius * radius];
+            let mut product = vec![0.0; coefficients.len() + 2];
+            for (i, a) in coefficients.iter().enumerate() {
+                for (j, b) in quadratic.iter().enumerate() {
+                    product[i + j] += a * b;
+                }
+            }
+            coefficients = product;
+        }
+        (coefficients[1..].to_vec(), roots)
+    }
+
+    #[test]
+    fn checked_roots_recover_separated_and_close_resonance_controls() {
+        for (frequencies, bandwidth) in [
+            ([500.0, 1500.0, 2500.0, 3500.0, 4500.0], 100.0),
+            ([500.0, 510.0, 2500.0, 2510.0, 4500.0], 20.0),
+        ] {
+            let (coefficients, expected) = polynomial_from_resonances(&frequencies, bandwidth);
+            let result = checked_poly_roots(&coefficients).unwrap();
+            assert_eq!(result.roots.len(), 10);
+            assert_eq!(result.roots.iter().filter(|z| z.im > 0.0).count(), 5);
+            for root in expected {
+                let distance = result
+                    .roots
+                    .iter()
+                    .map(|got| (got - root).norm())
+                    .fold(f64::INFINITY, f64::min);
+                assert!(distance < 1e-10, "root distance {distance}");
+            }
+            assert_eq!(result.diagnostics.unpaired_nonreal_roots, 0);
+            assert!(result.diagnostics.iterations < ROOT_ITERATIONS);
+        }
+    }
+
+    #[test]
+    fn unresolved_low_frequency_cluster_is_rejected() {
+        let (coefficients, _) = polynomial_from_resonances(&[50.0, 70.0, 90.0, 110.0, 130.0], 10.0);
+        let failure = checked_poly_roots(&coefficients).unwrap_err();
+        assert_eq!(failure.reason, RootFailureReason::DidNotConverge);
+        assert_eq!(failure.diagnostics.iterations, ROOT_ITERATIONS);
+        assert!(failure.diagnostics.max_relative_step.unwrap() > ROOT_STEP_TOLERANCE);
+        // Tiny individual residuals cannot rescue an unresolved complete set.
+        assert!(failure.diagnostics.max_relative_residual.unwrap() < 1e-10);
+        assert!(poly_roots(&coefficients).is_empty());
+    }
+
+    #[test]
+    fn checked_roots_reject_nonfinite_coefficients() {
+        for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            let failure = checked_poly_roots(&[value, 1.0]).unwrap_err();
+            assert_eq!(failure.reason, RootFailureReason::NonFiniteCoefficients);
+            assert_eq!(failure.diagnostics.iterations, 0);
+            assert!(poly_roots(&[value, 1.0]).is_empty());
+        }
+    }
+
+    #[test]
+    fn finite_coefficients_that_overflow_iteration_are_rejected() {
+        let failure = checked_poly_roots(&[f64::MAX, f64::MAX]).unwrap_err();
+        assert_eq!(failure.reason, RootFailureReason::NonFiniteIteration);
+        assert!(poly_roots(&[f64::MAX, f64::MAX]).is_empty());
+    }
+
+    #[test]
+    fn checked_roots_handle_constant_and_linear_polynomials() {
+        assert!(checked_poly_roots(&[]).unwrap().roots.is_empty());
+        assert_eq!(
+            checked_poly_roots(&[0.0]).unwrap().roots,
+            [Complex64::new(0.0, 0.0)]
+        );
+        assert_eq!(
+            checked_poly_roots(&[-2.0]).unwrap().roots,
+            [Complex64::new(2.0, 0.0)]
+        );
+    }
+
+    #[test]
+    fn zero_residual_duplicate_roots_do_not_represent_the_polynomial() {
+        let mut diagnostics = RootDiagnostics::default();
+        inspect_roots(
+            &[0.0, -1.0],
+            &[Complex64::new(1.0, 0.0); 2],
+            &mut diagnostics,
+        );
+        assert_eq!(diagnostics.max_relative_residual, Some(0.0));
+        assert_eq!(diagnostics.max_conjugate_mismatch, Some(0.0));
+        assert_eq!(
+            root_validation_failure(2, &diagnostics),
+            Some(RootFailureReason::InconsistentPolynomial)
+        );
+    }
+
+    #[test]
+    fn conjugate_matching_cannot_reuse_a_partner() {
+        let i = Complex64::new(0.0, 1.0);
+        let mut diagnostics = RootDiagnostics::default();
+        inspect_roots(&[0.0, 2.0, 0.0, 1.0], &[i, i, i, -i], &mut diagnostics);
+        assert_eq!(diagnostics.max_relative_residual, Some(0.0));
+        assert_eq!(diagnostics.unpaired_nonreal_roots, 2);
+        assert_eq!(
+            root_validation_failure(4, &diagnostics),
+            Some(RootFailureReason::UnpairedConjugates)
+        );
+    }
+
+    #[test]
+    fn residual_check_rejects_inexact_roots() {
+        let mut diagnostics = RootDiagnostics::default();
+        inspect_roots(
+            &[0.0, -1.0],
+            &[Complex64::new(1.01, 0.0), Complex64::new(-1.01, 0.0)],
+            &mut diagnostics,
+        );
+        assert_eq!(
+            root_validation_failure(2, &diagnostics),
+            Some(RootFailureReason::ResidualTooLarge)
+        );
+        assert_eq!(
+            root_validation_failure(2, &RootDiagnostics::default()),
+            Some(RootFailureReason::NonFiniteValidation)
+        );
     }
 
     /// Impulse train through second-order resonators = synthetic vowel with
@@ -520,5 +956,73 @@ mod tests {
         let t = track_formants(&vec![0.0; 16000], 16000, &Default::default());
         assert!(!t.frames.is_empty());
         assert!(t.frames.iter().all(|f| f.formants_hz.is_empty()));
+    }
+
+    #[test]
+    fn constant_nonzero_signal_yields_empty_interior_frames() {
+        // Work at the analysis rate to isolate frame centering from resampling.
+        // Pre-emphasis retains the first sample, so exclude its startup frame.
+        for level in [-0.375, 0.1, 0.5] {
+            let t = track_formants(&vec![level; 11000], 11000, &Default::default());
+            assert!(t.frames.len() > 1);
+            assert!(
+                t.frames.iter().skip(1).all(|f| f.formants_hz.is_empty()),
+                "constant level {level} produced formants"
+            );
+        }
+    }
+
+    #[test]
+    fn constant_nonzero_signal_without_preemphasis_yields_empty_frames() {
+        let params = FormantParams {
+            pre_emphasis_hz: 0.0,
+            ..Default::default()
+        };
+        let t = track_formants(&vec![0.1; 11000], 11000, &params);
+        assert!(!t.frames.is_empty());
+        assert!(t.frames.iter().all(|f| f.formants_hz.is_empty()));
+    }
+
+    #[test]
+    fn formants_are_invariant_to_constant_offset_after_startup() {
+        let truth = [(700.0, 80.0), (1220.0, 90.0), (2600.0, 120.0)];
+        let signal = synth_vowel(120.0, &truth, 11000.0, 0.5);
+        let shifted: Vec<f64> = signal.iter().map(|v| v + 0.375).collect();
+        let original = track_formants(&signal, 11000, &Default::default());
+        let offset = track_formants(&shifted, 11000, &Default::default());
+        assert_eq!(original.frames.len(), offset.frames.len());
+        for (a, b) in original.frames.iter().zip(&offset.frames).skip(1) {
+            assert_eq!(a.time_s, b.time_s);
+            assert_eq!(a.formants_hz.len(), b.formants_hz.len());
+            assert!(!a.formants_hz.is_empty());
+            for (x, y) in a.formants_hz.iter().zip(&b.formants_hz) {
+                assert!((x - y).abs() < 1e-5, "frequency {x} vs {y}");
+            }
+            for (x, y) in a.bandwidths_hz.iter().zip(&b.bandwidths_hz) {
+                assert!((x - y).abs() < 1e-5, "bandwidth {x} vs {y}");
+            }
+        }
+    }
+
+    #[test]
+    fn reciprocal_pole_radii_have_equal_positive_bandwidths() {
+        let sample_rate = 11000.0;
+        let frequency = 1700.0;
+        let bandwidth = 250.0;
+        let angle = 2.0 * std::f64::consts::PI * frequency / sample_rate;
+        let radius = (-std::f64::consts::PI * bandwidth / sample_rate).exp();
+        for r in [radius, 1.0 / radius] {
+            let (f, b) = formant_from_root(Complex64::from_polar(r, angle), sample_rate);
+            assert!((f - frequency).abs() < 1e-9, "frequency {f}");
+            assert!((b - bandwidth).abs() < 1e-9, "bandwidth {b}");
+            assert!(b > 0.0);
+        }
+    }
+
+    #[test]
+    fn unit_circle_pole_has_zero_bandwidth() {
+        let (frequency, bandwidth) = formant_from_root(Complex64::new(0.0, 1.0), 11000.0);
+        assert!((frequency - 2750.0).abs() < 1e-9);
+        assert_eq!(bandwidth, 0.0);
     }
 }

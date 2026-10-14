@@ -1,0 +1,78 @@
+{
+  "baseline_commit": "3e6fd2770e167d2457e57aa31c0827d90c43b859",
+  "baseline_source_sha256": "be1df1403f2a2ef4c0f2bbc0086519d55651cfdb5a2441394c2f6145d902d960",
+  "candidate_source_sha256": "e72a7a760848e7198e43cb0e2b3da2c908585e107821c001f3ec5b277c01d724",
+  "preemphasis_source_sha256": "230b786f2f46a0f0c37de0f24ecb303f8581c0ec5d056cbc870a8fb746932c57",
+  "driver_sha256": "4ed8f488cb7c2be860050789c99ecb7efa4a49473cb039b2143237762ce900c5",
+  "duration_s": 1.0,
+  "input_tone_peak": 1.0,
+  "output_rate_hz": 11000,
+  "rms_output_indices": "[1100,9900), 0.1 to 0.9 s",
+  "constant_input_level": 0.1,
+  "constant_frame_filter": "0.1 < center time < 0.9 s",
+  "rustc_version": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "driver_source": "#![allow(dead_code)]\nmod baseline;\nmod current;\nmod spectrogram;\nuse std::f64::consts::PI;\nfn tone(sr:u32,f:f64)->Vec<f64>{(0..sr).map(|i|(2.0*PI*f*i as f64/sr as f64).sin()).collect()}\nfn rms(v:&[f64])->f64{let mid=&v[1100..9900];(mid.iter().map(|x|x*x).sum::<f64>()/mid.len() as f64).sqrt()}\nfn main(){\n println!(\"input_rate_hz,old_4500_rms,new_4500_rms,old_5700_rms,new_5700_rms,old_5700_gain_db,new_5700_gain_db,old_constant_nonempty,new_constant_nonempty,constant_interior_frames\");\n for sr in [16000,44100,48000,96000,192000]{\n  let pass=tone(sr,4500.0);let stop=tone(sr,5700.0);\n  let op=rms(&baseline::resample(&pass,sr as f64,11000.0));\n  let np=rms(&current::resample(&pass,sr as f64,11000.0));\n  let os=rms(&baseline::resample(&stop,sr as f64,11000.0));\n  let ns=rms(&current::resample(&stop,sr as f64,11000.0));\n  let constant=vec![0.1;sr as usize];\n  let old=baseline::track_formants(&constant,sr,&baseline::FormantParams::default());\n  let new=current::track_formants(&constant,sr,&current::FormantParams::default());\n  let oldframes:Vec<_>=old.frames.iter().filter(|f|f.time_s>0.1&&f.time_s<0.9).collect();\n  let newframes:Vec<_>=new.frames.iter().filter(|f|f.time_s>0.1&&f.time_s<0.9).collect();\n  assert_eq!(oldframes.len(),newframes.len());\n  let oldfalse=oldframes.iter().filter(|f|!f.formants_hz.is_empty()).count();\n  let newfalse=newframes.iter().filter(|f|!f.formants_hz.is_empty()).count();\n  println!(\"{sr},{op:.12},{np:.12},{os:.12},{ns:.12},{:.6},{:.6},{oldfalse},{newfalse},{}\",20.0*(os*2.0_f64.sqrt()).log10(),20.0*(ns*2.0_f64.sqrt()).log10(),oldframes.len());\n }\n}",
+  "reproduction": "Use baseline.rs from baseline_commit:core/src/formant.rs, current.rs from core/src/formant.rs and spectrogram.rs from core/src/spectrogram.rs; compile the retained driver with rustc --edition=2021 -O and the core build rustfft rlib (--extern rustfft=... -L dependency=core/target/release/deps).",
+  "rows": [
+    {
+      "input_rate_hz": 16000,
+      "old_4500_rms": 0.705870994727,
+      "new_4500_rms": 0.707498290081,
+      "old_5700_rms": 0.004159374384,
+      "new_5700_rms": 0.000949776115,
+      "old_5700_gain_db": -44.60914,
+      "new_5700_gain_db": -57.437275,
+      "old_constant_nonempty": 80,
+      "new_constant_nonempty": 0,
+      "constant_interior_frames": 80
+    },
+    {
+      "input_rate_hz": 44100,
+      "old_4500_rms": 0.650640910835,
+      "new_4500_rms": 0.707517003019,
+      "old_5700_rms": 0.132989739517,
+      "new_5700_rms": 0.00090593591,
+      "old_5700_gain_db": -14.513337,
+      "new_5700_gain_db": -57.847751,
+      "old_constant_nonempty": 80,
+      "new_constant_nonempty": 0,
+      "constant_interior_frames": 80
+    },
+    {
+      "input_rate_hz": 48000,
+      "old_4500_rms": 0.635712333951,
+      "new_4500_rms": 0.707529390279,
+      "old_5700_rms": 0.147789117952,
+      "new_5700_rms": 0.000874119884,
+      "old_5700_gain_db": -13.596851,
+      "new_5700_gain_db": -58.15828,
+      "old_constant_nonempty": 80,
+      "new_constant_nonempty": 0,
+      "constant_interior_frames": 80
+    },
+    {
+      "input_rate_hz": 96000,
+      "old_4500_rms": 0.516185367149,
+      "new_4500_rms": 0.707529390298,
+      "old_5700_rms": 0.243903651868,
+      "new_5700_rms": 0.000874119884,
+      "old_5700_gain_db": -9.245334,
+      "new_5700_gain_db": -58.15828,
+      "old_constant_nonempty": 80,
+      "new_constant_nonempty": 0,
+      "constant_interior_frames": 80
+    },
+    {
+      "input_rate_hz": 192000,
+      "old_4500_rms": 0.436965983734,
+      "new_4500_rms": 0.707536775721,
+      "old_5700_rms": 0.298017490672,
+      "new_5700_rms": 0.000853999332,
+      "old_5700_gain_db": -7.504865,
+      "new_5700_gain_db": -58.360549,
+      "old_constant_nonempty": 80,
+      "new_constant_nonempty": 0,
+      "constant_interior_frames": 80
+    }
+  ]
+}

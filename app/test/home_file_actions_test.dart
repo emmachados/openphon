@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -146,5 +147,122 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('restore is available and reports picker failure', (
+    tester,
+  ) async {
+    await tester.pumpWidget(OpenphonApp(db: db, prefs: AppPrefs()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(PopupMenuButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Restore library backup…'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Restore failed: '), findsOneWidget);
+    expect(find.textContaining('provider_unavailable'), findsOneWidget);
+    expect(await tester.runAsync(() => db.watchLibrary().first), isEmpty);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('library export reports exclusions and includes metadata', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    final shared = Completer<Map<Object?, Object?>>();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(shareChannel, (call) async {
+          shared.complete(call.arguments as Map<Object?, Object?>);
+          return 'dev.fluttercommunity.plus/share/unavailable';
+        });
+    await tester.runAsync(() async {
+      await Directory('${tmp.path}/recordings').create();
+      await File('${tmp.path}/recordings/source.wav').writeAsString('audio');
+      await db.addRecording(
+        RecordingsCompanion.insert(
+          name: 'Unannotated take',
+          relativePath: 'recordings/source.wav',
+          createdAt: DateTime(2026),
+          sampleRate: 44100,
+        ),
+      );
+      await File('${tmp.path}/recordings/invalid.wav').writeAsString('audio');
+      final invalidId = await db.addRecording(
+        RecordingsCompanion.insert(
+          name: 'Invalid settings take',
+          relativePath: 'recordings/invalid.wav',
+          createdAt: DateTime(2026),
+          sampleRate: 44100,
+        ),
+      );
+      await db.updateAnalysisSettings(invalidId, '{"pitchFloorHz": -1}');
+    });
+    await tester.pumpWidget(OpenphonApp(db: db, prefs: AppPrefs()));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AppBar),
+        matching: find.byType(PopupMenuButton<String>),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Export measurements (library)'));
+    for (
+      var i = 0;
+      i < 100 && find.text('Library measurement report').evaluate().isEmpty;
+      i++
+    ) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.text('Library measurement report'), findsOneWidget);
+    expect(
+      find.textContaining('Unannotated take: No saved TextGrid'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('0 rows from 0 recordings; 2 recordings excluded'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Export results'));
+    for (var i = 0; i < 100 && !shared.isCompleted; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(shared.isCompleted, isTrue);
+    final arguments = await shared.future;
+    final paths = (arguments['paths'] as List).cast<String>();
+    expect(paths, hasLength(2));
+    final metadata =
+        jsonDecode(
+              File(
+                paths.singleWhere((path) => path.endsWith('.json')),
+              ).readAsStringSync(),
+            )
+            as Map<String, dynamic>;
+    final records = (metadata['recordings'] as List)
+        .cast<Map<String, dynamic>>();
+    final record = records.singleWhere(
+      (r) => r['display_name'] == 'Unannotated take',
+    );
+    expect(record['status'], 'no_textgrid');
+    expect(record['display_name'], 'Unannotated take');
+    expect(record['sources']['wav']['sha256'], hasLength(64));
+    final invalid = records.singleWhere(
+      (r) => r['display_name'] == 'Invalid settings take',
+    );
+    expect(invalid['status'], 'error');
+    expect(invalid['analysis_settings'], isNull);
+    expect(invalid['formant_analysis'], isNull);
+    expect(invalid['stored_analysis_settings_json'], '{"pitchFloorHz": -1}');
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+    debugDefaultTargetPlatformOverride = null;
   });
 }

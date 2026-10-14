@@ -245,7 +245,7 @@ class TransportBar extends StatelessWidget {
                   ),
                   PopupMenuItem(
                     value: 'measure',
-                    enabled: hasGrid,
+                    enabled: hasGrid && controller.measurementsReady,
                     child: Text(l10n.exportMeasurementsMenu),
                   ),
                   const PopupMenuDivider(),
@@ -271,7 +271,7 @@ class TransportBar extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.record_voice_over_outlined),
               tooltip: l10n.voiceReportTitle,
-              onPressed: controller.isOpen ? onVoiceReport : null,
+              onPressed: controller.isOpen && controller.pitchReady ? onVoiceReport : null,
             ),
             IconButton(
               icon: const Icon(Icons.tune),

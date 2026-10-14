@@ -2,8 +2,9 @@
 //! recipes over an annotation, plus batch mode over a directory.
 //!
 //! The default interval columns are byte-identical to the app's in-app
-//! "Export measurements" CSV; every extension below is opt-in via a flag
-//! so existing pipelines never see a changed header:
+//! "Export measurements" CSV, including finite-sample coverage counts.
+//! Unavailable measurements are empty cells; the track commands retain
+//! their raw zero sentinel for unvoiced/missing values.
 //!
 //!   --mid50          aggregate F0/intensity over the middle 50% of each
 //!                    interval only (voweltarget practice: skips the
@@ -37,11 +38,11 @@
 use openphon_core::{formant, intensity, pitch, pitch_edits, spectral, textgrid, wav};
 use std::fmt::Write as _;
 
-use crate::{load_wav, parse_opts, Opts};
+use crate::{Opts, load_wav, parse_opts};
 
 /// CSV-escape a label: quote when it contains a comma, quote, or newline.
 fn csv_escape(s: &str) -> String {
-    if s.contains(',') || s.contains('"') || s.contains('\n') {
+    if s.contains(',') || s.contains('"') || s.contains('\n') || s.contains('\r') {
         format!("\"{}\"", s.replace('"', "\"\""))
     } else {
         s.to_string()
@@ -58,7 +59,7 @@ fn voiced_in(f0: &pitch::F0Track, t0: f64, t1: f64) -> Vec<f64> {
     f0.times_s
         .iter()
         .zip(&f0.f0_hz)
-        .filter(|(t, f)| **t >= t0 && **t < t1 && **f > 0.0)
+        .filter(|(t, f)| t.is_finite() && **t >= t0 && **t < t1 && f.is_finite() && **f > 0.0)
         .map(|(_, f)| *f)
         .collect()
 }
@@ -73,21 +74,36 @@ fn db_in(int: &intensity::IntensityTrack, t0: f64, t1: f64) -> Vec<f64> {
         .collect()
 }
 
-fn mean(v: &[f64]) -> f64 {
+fn mean(v: &[f64]) -> Option<f64> {
     if v.is_empty() {
-        0.0
+        None
     } else {
-        v.iter().sum::<f64>() / v.len() as f64
+        Some(v.iter().sum::<f64>() / v.len() as f64)
     }
 }
 
-fn median(v: &mut [f64]) -> f64 {
+pub(crate) fn median(v: &mut [f64]) -> Option<f64> {
     if v.is_empty() {
-        0.0
+        None
     } else {
         v.sort_by(|a, b| a.total_cmp(b));
-        v[v.len() / 2]
+        let middle = v.len() / 2;
+        Some(if v.len() % 2 == 0 {
+            (v[middle - 1] + v[middle]) / 2.0
+        } else {
+            v[middle]
+        })
     }
+}
+
+fn cell(value: Option<f64>) -> String {
+    value
+        .filter(|v| v.is_finite())
+        .map_or(String::new(), |v| format!("{v:.3}"))
+}
+
+fn positive(value: f64) -> Option<f64> {
+    (value.is_finite() && value > 0.0).then_some(value)
 }
 
 /// The interval of `tier` containing time `t` ([xmin, xmax) except the
@@ -193,7 +209,11 @@ impl MeasureConfig {
             self.interval_header()
         };
         if edited {
-            h.push_str(if is_point { ",f0_edited" } else { ",f0_edited_frames" });
+            h.push_str(if is_point {
+                ",f0_edited"
+            } else {
+                ",f0_edited_frames"
+            });
         }
         h
     }
@@ -201,7 +221,8 @@ impl MeasureConfig {
     fn interval_header(&self) -> String {
         let mut h = String::from(
             "tier,label,tmin_s,tmax_s,duration_s,mean_f0_hz,median_f0_hz,\
-             f1_mid_hz,f2_mid_hz,f3_mid_hz,mean_intensity_db",
+             f1_mid_hz,f2_mid_hz,f3_mid_hz,mean_intensity_db,\
+             f0_frames,voiced_f0_frames,intensity_frames",
         );
         if self.contour {
             h.push_str(",f0_20_hz,f0_50_hz,f0_80_hz,int_20_db,int_50_db,int_80_db");
@@ -250,11 +271,7 @@ fn find_interval_tier<'a>(
 }
 
 /// Measurement rows (no header) for one WAV + TextGrid pair.
-fn measure_file(
-    wav_path: &str,
-    grid_path: &str,
-    cfg: &MeasureConfig,
-) -> Result<Measured, String> {
+fn measure_file(wav_path: &str, grid_path: &str, cfg: &MeasureConfig) -> Result<Measured, String> {
     let tg = textgrid::parse_file(grid_path)?;
 
     enum Chosen<'a> {
@@ -354,48 +371,65 @@ fn interval_rows(
         };
         edited.push(edited_in(tracks, a0, a1));
         let mut voiced = voiced_in(&tracks.f0, a0, a1);
+        let f0_frames = tracks
+            .f0
+            .times_s
+            .iter()
+            .zip(&tracks.f0.f0_hz)
+            .filter(|(t, f)| t.is_finite() && **t >= a0 && **t < a1 && f.is_finite())
+            .count();
         let mean_f0 = mean(&voiced);
         let median_f0 = median(&mut voiced);
-        let mean_db = mean(&db_in(&tracks.int, a0, a1));
+        let db = db_in(&tracks.int, a0, a1);
+        let mean_db = mean(&db);
 
         let mid = 0.5 * (iv.xmin + iv.xmax);
-        let mut f_mid = [0.0f64; 3];
+        let mut f_mid = [None; 3];
         if let Some(frame) = tracks
             .fmn
             .frames
             .iter()
+            .filter(|f| f.time_s.is_finite() && f.time_s >= iv.xmin && f.time_s < iv.xmax)
             .min_by(|a, b| (a.time_s - mid).abs().total_cmp(&(b.time_s - mid).abs()))
         {
             for (slot, val) in f_mid.iter_mut().zip(&frame.formants_hz) {
-                *slot = *val;
+                *slot = positive(*val);
             }
         }
 
         let mut row = format!(
-            "{},{},{:.6},{:.6},{:.6},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3}",
+            "{},{},{:.6},{:.6},{:.6},{},{},{},{},{},{},{},{},{}",
             csv_escape(&tier.name),
             csv_escape(&iv.text),
             iv.xmin,
             iv.xmax,
             dur,
-            mean_f0,
-            median_f0,
-            f_mid[0],
-            f_mid[1],
-            f_mid[2],
-            mean_db
+            cell(mean_f0),
+            cell(median_f0),
+            cell(f_mid[0]),
+            cell(f_mid[1]),
+            cell(f_mid[2]),
+            cell(mean_db),
+            f0_frames,
+            voiced.len(),
+            db.len()
         );
         if cfg.contour {
             for frac in [0.2, 0.5, 0.8] {
                 let t = iv.xmin + frac * dur;
-                let f = nearest_idx(&tracks.f0.times_s, t).map_or(0.0, |i| tracks.f0.f0_hz[i]);
-                write!(row, ",{f:.3}").unwrap();
+                let f = nearest_idx(&tracks.f0.times_s, t)
+                    .filter(|&i| tracks.f0.times_s[i] >= iv.xmin && tracks.f0.times_s[i] < iv.xmax)
+                    .and_then(|i| positive(tracks.f0.f0_hz[i]));
+                write!(row, ",{}", cell(f)).unwrap();
             }
             for frac in [0.2, 0.5, 0.8] {
                 let t = iv.xmin + frac * dur;
-                let v = nearest_idx(&tracks.int.times_s, t).map_or(0.0, |i| tracks.int.db[i]);
-                let v = if v.is_finite() { v } else { 0.0 };
-                write!(row, ",{v:.3}").unwrap();
+                let v = nearest_idx(&tracks.int.times_s, t)
+                    .filter(|&i| {
+                        tracks.int.times_s[i] >= iv.xmin && tracks.int.times_s[i] < iv.xmax
+                    })
+                    .map(|i| tracks.int.db[i]);
+                write!(row, ",{}", cell(v)).unwrap();
             }
         }
         if cfg.moments {
@@ -416,7 +450,7 @@ fn interval_rows(
                     m.cog_hz, m.sd_hz, m.skewness, m.kurtosis
                 )
                 .unwrap(),
-                None => row.push_str(",0,0,0,0"),
+                None => row.push_str(",,,,"),
             }
         }
         if let Some(jt) = join_tier {
@@ -441,33 +475,32 @@ fn point_rows(
             continue;
         }
         let fi = nearest_idx(&tracks.f0.times_s, point.time);
-        let f = fi.map_or(0.0, |i| tracks.f0.f0_hz[i]);
+        let f = fi.and_then(|i| positive(tracks.f0.f0_hz[i]));
         edited.push(match (&tracks.f0_edited, fi) {
             (Some(mask), Some(i)) => usize::from(mask[i]),
             _ => 0,
         });
-        let db = nearest_idx(&tracks.int.times_s, point.time).map_or(0.0, |i| tracks.int.db[i]);
-        let db = if db.is_finite() { db } else { 0.0 };
-        let mut fs = [0.0f64; 3];
+        let db = nearest_idx(&tracks.int.times_s, point.time).map(|i| tracks.int.db[i]);
+        let mut fs = [None; 3];
         if let Some(frame) = tracks.fmn.frames.iter().min_by(|a, b| {
             (a.time_s - point.time)
                 .abs()
                 .total_cmp(&(b.time_s - point.time).abs())
         }) {
             for (slot, val) in fs.iter_mut().zip(&frame.formants_hz) {
-                *slot = *val;
+                *slot = positive(*val);
             }
         }
         let mut row = format!(
-            "{},{},{:.6},{:.3},{:.3},{:.3},{:.3},{:.3}",
+            "{},{},{:.6},{},{},{},{},{}",
             csv_escape(&tier.name),
             csv_escape(&point.mark),
             point.time,
-            f,
-            db,
-            fs[0],
-            fs[1],
-            fs[2]
+            cell(f),
+            cell(db),
+            cell(fs[0]),
+            cell(fs[1]),
+            cell(fs[2])
         );
         if let Some(rt) = rel_tier {
             match containing_interval(rt, point.time) {
@@ -619,11 +652,12 @@ mod tests {
     }
 
     #[test]
-    fn mean_and_median_of_empty_are_zero() {
-        assert_eq!(mean(&[]), 0.0);
-        assert_eq!(median(&mut []), 0.0);
-        assert_eq!(mean(&[2.0, 4.0]), 3.0);
-        assert_eq!(median(&mut [5.0, 1.0, 3.0]), 3.0);
+    fn mean_and_median_distinguish_missing_and_even_samples() {
+        assert_eq!(mean(&[]), None);
+        assert_eq!(median(&mut []), None);
+        assert_eq!(mean(&[2.0, 4.0]), Some(3.0));
+        assert_eq!(median(&mut [5.0, 1.0, 3.0]), Some(3.0));
+        assert_eq!(median(&mut [201.0, 200.0, 201.0, 200.0]), Some(200.5));
     }
 
     #[test]
@@ -650,10 +684,14 @@ mod tests {
         assert_eq!(
             base.interval_header(),
             "tier,label,tmin_s,tmax_s,duration_s,mean_f0_hz,median_f0_hz,\
-             f1_mid_hz,f2_mid_hz,f3_mid_hz,mean_intensity_db"
+             f1_mid_hz,f2_mid_hz,f3_mid_hz,mean_intensity_db,\
+             f0_frames,voiced_f0_frames,intensity_frames"
         );
         assert_eq!(base.header(false, false), base.interval_header());
-        assert!(base.header(false, true).ends_with(",mean_intensity_db,f0_edited_frames"));
+        assert!(
+            base.header(false, true)
+                .ends_with(",intensity_frames,f0_edited_frames")
+        );
         assert!(base.header(true, true).ends_with(",f3_hz,f0_edited"));
         let full = MeasureConfig {
             contour: true,
@@ -666,7 +704,10 @@ mod tests {
             ",f0_20_hz,f0_50_hz,f0_80_hz,int_20_db,int_50_db,int_80_db,\
              cog_hz,spec_sd_hz,skewness,kurtosis,join_label"
         ));
-        assert!(full.point_header().ends_with(",rel_label,to_start_s,to_end_s"));
+        assert!(
+            full.point_header()
+                .ends_with(",rel_label,to_start_s,to_end_s")
+        );
     }
 
     #[test]
@@ -716,5 +757,131 @@ mod tests {
             ..m()
         };
         assert_eq!(e.finish(true), vec!["a,3", "b,0"]);
+    }
+
+    fn config() -> MeasureConfig {
+        MeasureConfig {
+            tier: None,
+            all: false,
+            mid50: false,
+            contour: false,
+            moments: false,
+            join: None,
+            rel_tier: None,
+            pitch_params: Default::default(),
+            ignore_pitch_edits: false,
+        }
+    }
+
+    #[test]
+    fn interval_missingness_and_finite_counts_match_app_recipe() {
+        let times = vec![0.0, 0.1, 0.2, 0.3, 0.4, 0.5];
+        let tracks = Tracks {
+            f0: pitch::F0Track {
+                times_s: times.clone(),
+                f0_hz: vec![100.0, f64::NAN, 0.0, 200.0, f64::INFINITY, 400.0],
+            },
+            f0_edited: None,
+            int: intensity::IntensityTrack {
+                times_s: times,
+                db: vec![0.0, f64::NAN, f64::INFINITY, f64::NEG_INFINITY, 0.0, 50.0],
+            },
+            fmn: formant::FormantTrack {
+                frames: vec![formant::FormantFrame {
+                    time_s: 0.25,
+                    formants_hz: vec![500.0, 0.0, f64::NAN],
+                    bandwidths_hz: vec![80.0; 3],
+                }],
+            },
+        };
+        let tier = IntervalTier {
+            name: "phones".into(),
+            xmin: 0.0,
+            xmax: 0.5,
+            intervals: vec![Interval {
+                xmin: 0.0,
+                xmax: 0.5,
+                text: "a".into(),
+            }],
+        };
+        let wav = wav::WavData {
+            sample_rate: 100,
+            channels: 1,
+            samples: vec![0.0; 50],
+        };
+        let (rows, _) = interval_rows(&tier, &wav, &tracks, &config(), None);
+        assert_eq!(
+            rows,
+            vec!["phones,a,0.000000,0.500000,0.500000,150.000,150.000,500.000,,,0.000,3,2,2"]
+        );
+
+        let outside_tier = IntervalTier {
+            name: "phones".into(),
+            xmin: 1.0,
+            xmax: 2.0,
+            intervals: vec![Interval {
+                xmin: 1.0,
+                xmax: 2.0,
+                text: "outside".into(),
+            }],
+        };
+        let (rows, _) = interval_rows(&outside_tier, &wav, &tracks, &config(), None);
+        assert_eq!(
+            rows,
+            vec!["phones,outside,1.000000,2.000000,1.000000,,,,,,,0,0,0"]
+        );
+    }
+
+    #[test]
+    fn missing_point_and_contour_values_are_blank_but_zero_db_is_retained() {
+        let tracks = Tracks {
+            f0: pitch::F0Track {
+                times_s: vec![0.2],
+                f0_hz: vec![0.0],
+            },
+            f0_edited: None,
+            int: intensity::IntensityTrack {
+                times_s: vec![0.2],
+                db: vec![0.0],
+            },
+            fmn: formant::FormantTrack { frames: vec![] },
+        };
+        let points = textgrid::PointTier {
+            name: "points".into(),
+            xmin: 0.0,
+            xmax: 1.0,
+            points: vec![textgrid::Point {
+                time: 0.2,
+                mark: "a".into(),
+            }],
+        };
+        let (rows, _) = point_rows(&points, &tracks, &config(), None);
+        assert_eq!(rows, vec!["points,a,0.200000,,0.000,,,"]);
+        let cfg = MeasureConfig {
+            contour: true,
+            moments: true,
+            ..config()
+        };
+        let wav = wav::WavData {
+            sample_rate: 100,
+            channels: 1,
+            samples: vec![0.0; 100],
+        };
+        let (rows, _) = interval_rows(&tier(), &wav, &tracks, &cfg, None);
+        assert!(
+            rows[0].ends_with(",1,0,1,,,,0.000,0.000,0.000,,,,"),
+            "{}",
+            rows[0]
+        );
+        assert!(rows[1].ends_with(",0,0,0,,,,,,,,,,"), "{}", rows[1]);
+    }
+
+    #[test]
+    fn csv_escapes_carriage_returns_and_preserves_multiline_fields() {
+        assert_eq!(csv_escape("tier\rname"), "\"tier\rname\"");
+        assert_eq!(
+            csv_escape("first\n\nsecond, \"quoted\"\rline"),
+            "\"first\n\nsecond, \"\"quoted\"\"\rline\""
+        );
     }
 }

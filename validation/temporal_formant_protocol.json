@@ -1,0 +1,38 @@
+{
+  "experiment": "three-track temporal candidate selection, first fixed operating point",
+  "declared_before_scoring": true,
+  "scope": "Offline vowel-like synthetic segments. No application default or user-facing setting changes are authorized by a passing synthetic result alone.",
+  "candidate": {
+    "reference_hz": [550.0, 1650.0, 2750.0],
+    "frequency_weight_per_khz": 1.0,
+    "bandwidth_weight": 1.0,
+    "transition_weight_per_octave": 1.0,
+    "missing_cost_per_slot_frame": 2.0,
+    "gap_boundary_cost": "0.5 * transition_weight * log2((ceiling_hz - 50) / 50)",
+    "source": "Published Praat Formant: Track manual reference frequencies and illustrative unit costs; missing-state rule is an experimental extension.",
+    "source_url": "https://www.fon.hum.uva.nl/praat/manual/Formant__Track___.html",
+    "limitations": "The frequency references are an adult-female vowel prior. The parameters are not speaker-neutral and have not been calibrated. Continuity cannot recover an absent candidate or establish the identity of a persistently wrong one."
+  },
+  "ablation": "Set transition weight, including gap-boundary cost, to zero. Preserve all other costs and candidate states.",
+  "data": {
+    "new_fixtures": 32,
+    "f0_hz": [100, 200, 300, 400],
+    "endpoint_a_hz": [350, 2100, 2900, 3600, 4500],
+    "endpoint_b_hz": [750, 1300, 2500, 3600, 4500],
+    "duration_s": 1.6,
+    "sample_rate_hz": 44100,
+    "conditions_per_f0": ["steady A", "steady B", "linear A to B", "linear B to A", "abrupt A to B", "abrupt B to A", "linear A to B with dropout", "linear B to A with dropout"],
+    "steady_grid_cells": 252,
+    "high_f0_definition_hz": ">= 300",
+    "public_speech": "None. If synthetic screening fails, do not inspect public evaluation speech to rescue this selector."
+  },
+  "acceptance": {
+    "comparison": "Experimental temporal selector versus native default 400 Hz per-frame selection, using the same raw candidate estimator.",
+    "required_groups": ["transitions", "transitions_high_f0", "steady_grid", "steady_grid_high_f0", "steady_controls"],
+    "required_per_slot": "For each F1, F2 and F3, no increase in missing count or labelled RMSE, including RMSE on identical jointly observed frames. All comparisons must have observed support.",
+    "strict_improvement": "At least one F1-F3 labelled RMSE on continuous no-dropout transitions must decrease, both on its observed support and on common support.",
+    "numerical_tolerance_hz": 1e-9,
+    "additional_diagnostics": "Report median, signed median, p95, p99 and maximum absolute error; abrupt transitions and dropouts are separate stress conditions. Report the no-continuity ablation without selecting parameters from its results.",
+    "interpretation": "Passing permits further evaluation, not automatic deployment. Failing retains the current production selector and the negative experiment as reproducible research evidence. No threshold or parameter is changed in response to these results."
+  }
+}

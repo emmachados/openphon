@@ -1,0 +1,950 @@
+{
+  "cases": [
+    {
+      "case": "well_separated",
+      "coefficients": [
+        -0.9718440466630116,
+        0.9444808510343368,
+        -0.917888092264934,
+        0.892044077970545,
+        -0.8669277265366659,
+        0.8425185499217656,
+        -0.8187966369446134,
+        0.7957426370423234,
+        -0.7733377444855054,
+        0.7515636830380402
+      ],
+      "expected_roots": [
+        [
+          0.9324775342222391,
+          0.2738001081174919
+        ],
+        [
+          0.9324775342222391,
+          -0.2738001081174919
+        ],
+        [
+          0.6364225056780956,
+          0.7344707246042907
+        ],
+        [
+          0.6364225056780956,
+          -0.7344707246042907
+        ],
+        [
+          0.13830782832770142,
+          0.9619520755513824
+        ],
+        [
+          0.13830782832770142,
+          -0.9619520755513824
+        ],
+        [
+          -0.4037186072803207,
+          0.8840204393394848
+        ],
+        [
+          -0.4037186072803207,
+          -0.8840204393394848
+        ],
+        [
+          -0.8175672376162098,
+          0.5254185598272463
+        ],
+        [
+          -0.8175672376162098,
+          -0.5254185598272463
+        ]
+      ],
+      "baseline_roots": [
+        [
+          0.6364225056780951,
+          0.7344707246042892
+        ],
+        [
+          -0.4037186072803206,
+          0.8840204393394846
+        ],
+        [
+          -0.8175672376162098,
+          -0.5254185598272462
+        ],
+        [
+          0.13830782832770164,
+          -0.9619520755513828
+        ],
+        [
+          0.9324775342222396,
+          -0.27380010811749467
+        ],
+        [
+          0.9324775342222396,
+          0.2738001081174946
+        ],
+        [
+          0.13830782832770164,
+          0.9619520755513828
+        ],
+        [
+          -0.8175672376162098,
+          0.5254185598272462
+        ],
+        [
+          -0.40371860728032066,
+          -0.8840204393394846
+        ],
+        [
+          0.6364225056780951,
+          -0.7344707246042892
+        ]
+      ],
+      "candidate_roots": [
+        [
+          0.6364225056780951,
+          0.7344707246042892
+        ],
+        [
+          -0.4037186072803206,
+          0.8840204393394846
+        ],
+        [
+          -0.8175672376162098,
+          -0.5254185598272462
+        ],
+        [
+          0.13830782832770164,
+          -0.9619520755513828
+        ],
+        [
+          0.9324775342222396,
+          -0.27380010811749467
+        ],
+        [
+          0.9324775342222396,
+          0.2738001081174946
+        ],
+        [
+          0.13830782832770164,
+          0.9619520755513828
+        ],
+        [
+          -0.8175672376162098,
+          0.5254185598272462
+        ],
+        [
+          -0.40371860728032066,
+          -0.8840204393394846
+        ],
+        [
+          0.6364225056780951,
+          -0.7344707246042892
+        ]
+      ],
+      "candidate_accepted": true,
+      "failure_reason": null,
+      "compatibility_root_count": 10,
+      "diagnostics": {
+        "iterations": 8,
+        "max_relative_step": 1.2896496379254168e-13,
+        "max_relative_residual": 8.493403451091565e-17,
+        "max_conjugate_mismatch": 5.551115123125783e-17,
+        "unpaired_nonreal_roots": 0,
+        "coefficient_backward_error": 6.753223014464259e-16
+      },
+      "baseline": {
+        "n_roots": 10,
+        "finite": true,
+        "complete": true,
+        "n_upper_half": 5,
+        "max_matching_root_error": 2.8108601893111292e-15,
+        "max_matching_conjugate_error": 5.551115123125783e-17,
+        "max_relative_residual": 8.493403451091565e-17,
+        "coefficient_backward_error": 6.753223014464259e-16
+      },
+      "candidate": {
+        "n_roots": 10,
+        "finite": true,
+        "complete": true,
+        "n_upper_half": 5,
+        "max_matching_root_error": 2.8108601893111292e-15,
+        "max_matching_conjugate_error": 5.551115123125783e-17,
+        "max_relative_residual": 8.493403451091565e-17,
+        "coefficient_backward_error": 6.753223014464259e-16
+      }
+    },
+    {
+      "case": "close_pairs",
+      "coefficients": [
+        -2.6947258317051306,
+        3.4631502789990494,
+        -3.218420438716638,
+        1.80018571896583,
+        -0.6283786525956305,
+        1.7797374679261821,
+        -3.145719832889336,
+        3.346472279961964,
+        -2.5743590070762292,
+        0.9444808510343377
+      ],
+      "expected_roots": [
+        [
+          0.9540279853938685,
+          0.2801278915162569
+        ],
+        [
+          0.9540279853938685,
+          -0.2801278915162569
+        ],
+        [
+          0.9524123439264386,
+          0.2855726871683887
+        ],
+        [
+          0.9524123439264386,
+          -0.2855726871683887
+        ],
+        [
+          0.14150425504217048,
+          0.9841837116742927
+        ],
+        [
+          0.14150425504217048,
+          -0.9841837116742927
+        ],
+        [
+          0.1358803329876255,
+          0.98497592235912
+        ],
+        [
+          0.1358803329876255,
+          -0.98497592235912
+        ],
+        [
+          -0.8364620014975376,
+          0.5375614872465853
+        ],
+        [
+          -0.8364620014975376,
+          -0.5375614872465853
+        ]
+      ],
+      "baseline_roots": [
+        [
+          0.14150425504220004,
+          0.9841837116742562
+        ],
+        [
+          0.9540279853938376,
+          0.2801278915161137
+        ],
+        [
+          0.1415042550421956,
+          -0.98418371167425
+        ],
+        [
+          0.13588033298759802,
+          -0.9849759223591623
+        ],
+        [
+          0.9524123439264732,
+          -0.28557268716853357
+        ],
+        [
+          0.9524123439264595,
+          0.2855726871685615
+        ],
+        [
+          0.13588033298760396,
+          0.98497592235916
+        ],
+        [
+          -0.8364620014975376,
+          0.5375614872465853
+        ],
+        [
+          -0.8364620014975376,
+          -0.5375614872465853
+        ],
+        [
+          0.9540279853938413,
+          -0.28012789151609596
+        ]
+      ],
+      "candidate_roots": [
+        [
+          0.14150425504220004,
+          0.9841837116742562
+        ],
+        [
+          0.9540279853938376,
+          0.2801278915161137
+        ],
+        [
+          0.1415042550421956,
+          -0.98418371167425
+        ],
+        [
+          0.13588033298759802,
+          -0.9849759223591623
+        ],
+        [
+          0.9524123439264732,
+          -0.28557268716853357
+        ],
+        [
+          0.9524123439264595,
+          0.2855726871685615
+        ],
+        [
+          0.13588033298760396,
+          0.98497592235916
+        ],
+        [
+          -0.8364620014975376,
+          0.5375614872465853
+        ],
+        [
+          -0.8364620014975376,
+          -0.5375614872465853
+        ],
+        [
+          0.9540279853938413,
+          -0.28012789151609596
+        ]
+      ],
+      "candidate_accepted": true,
+      "failure_reason": null,
+      "compatibility_root_count": 10,
+      "diagnostics": {
+        "iterations": 12,
+        "max_relative_step": 8.888347377550842e-13,
+        "max_relative_residual": 9.406150408133846e-17,
+        "max_conjugate_mismatch": 3.113146330255776e-14,
+        "unpaired_nonreal_roots": 0,
+        "coefficient_backward_error": 2.482719418760019e-14
+      },
+      "baseline": {
+        "n_roots": 10,
+        "finite": true,
+        "complete": true,
+        "n_upper_half": 5,
+        "max_matching_root_error": 1.7406216118643242e-13,
+        "max_matching_conjugate_error": 3.113146330255776e-14,
+        "max_relative_residual": 9.406150408133846e-17,
+        "coefficient_backward_error": 2.482719418760019e-14
+      },
+      "candidate": {
+        "n_roots": 10,
+        "finite": true,
+        "complete": true,
+        "n_upper_half": 5,
+        "max_matching_root_error": 1.7406216118643242e-13,
+        "max_matching_conjugate_error": 3.113146330255776e-14,
+        "max_relative_residual": 9.406150408133846e-17,
+        "coefficient_backward_error": 2.482719418760019e-14
+      }
+    },
+    {
+      "case": "clustered_low",
+      "coefficients": [
+        -9.957007964891279,
+        44.62831755395808,
+        -118.5737622832246,
+        206.81219686074243,
+        -247.42695074936796,
+        205.63425574933578,
+        -117.22688677347142,
+        43.870083580130924,
+        -9.73209001987489,
+        0.9718440466630114
+      ],
+      "expected_roots": [
+        [
+          0.9967414370088229,
+          0.028474611254089684
+        ],
+        [
+          0.9967414370088229,
+          -0.028474611254089684
+        ],
+        [
+          0.9963511106434515,
+          0.03985925307937148
+        ],
+        [
+          0.9963511106434515,
+          -0.03985925307937148
+        ],
+        [
+          0.9958307547328118,
+          0.051238693043083317
+        ],
+        [
+          0.9958307547328118,
+          -0.051238693043083317
+        ],
+        [
+          0.99518043718634,
+          0.06261144606292027
+        ],
+        [
+          0.99518043718634,
+          -0.06261144606292027
+        ],
+        [
+          0.994400242874213,
+          0.07397602792926204
+        ],
+        [
+          0.994400242874213,
+          -0.07397602792926204
+        ]
+      ],
+      "baseline_roots": [
+        [
+          0.9945580862071975,
+          0.07548751587076155
+        ],
+        [
+          0.980897740851947,
+          -0.05864038849036483
+        ],
+        [
+          0.9930585086421504,
+          -0.0451106860117935
+        ],
+        [
+          0.999251322304342,
+          -0.05934328206400219
+        ],
+        [
+          1.046014164833801,
+          0.018734149517926443
+        ],
+        [
+          0.992065721016497,
+          0.060941765005156134
+        ],
+        [
+          0.9907645751458406,
+          0.04652911065123792
+        ],
+        [
+          1.0043987655411,
+          0.015430861465638027
+        ],
+        [
+          0.9953070795680523,
+          -0.07327105706476765
+        ],
+        [
+          0.9424695777045352,
+          0.06400111197267891
+        ]
+      ],
+      "candidate_roots": [],
+      "candidate_accepted": false,
+      "failure_reason": "DidNotConverge",
+      "compatibility_root_count": 0,
+      "diagnostics": {
+        "iterations": 200,
+        "max_relative_step": 0.12509594066093463,
+        "max_relative_residual": 2.4868002416697808e-14,
+        "max_conjugate_mismatch": 0.044014259354054064,
+        "unpaired_nonreal_roots": 2,
+        "coefficient_backward_error": 0.024798986762587325
+      },
+      "baseline": {
+        "n_roots": 10,
+        "finite": true,
+        "complete": true,
+        "n_upper_half": 6,
+        "max_matching_root_error": 0.05272917483377976,
+        "max_matching_conjugate_error": 0.03880027163742457,
+        "max_relative_residual": 2.4868002416697808e-14,
+        "coefficient_backward_error": 0.024798986762587325
+      },
+      "candidate": {
+        "n_roots": 0,
+        "finite": true,
+        "complete": false,
+        "n_upper_half": 0,
+        "max_matching_root_error": null,
+        "max_matching_conjugate_error": null,
+        "max_relative_residual": null,
+        "coefficient_backward_error": null
+      }
+    },
+    {
+      "case": "wider_low_cluster",
+      "coefficients": [
+        -9.65455347150942,
+        42.113808166131804,
+        -109.29849985424309,
+        186.90021514181223,
+        -220.03030184032107,
+        180.60330586398254,
+        -102.057750082298,
+        37.99900261030738,
+        -8.417745078314116,
+        0.8425185499217622
+      ],
+      "expected_roots": [
+        [
+          0.9814068383847354,
+          0.056118873426313935
+        ],
+        [
+          0.9814068383847354,
+          -0.056118873426313935
+        ],
+        [
+          0.9766025060742838,
+          0.11205469875194654
+        ],
+        [
+          0.9766025060742838,
+          -0.11205469875194654
+        ],
+        [
+          0.9686126993780668,
+          0.16762502494107395
+        ],
+        [
+          0.9686126993780668,
+          -0.16762502494107395
+        ],
+        [
+          0.9574634793848282,
+          0.22264859314008575
+        ],
+        [
+          0.9574634793848282,
+          -0.22264859314008575
+        ],
+        [
+          0.9431912125327954,
+          0.27694592790629036
+        ],
+        [
+          0.9431912125327954,
+          -0.27694592790629036
+        ]
+      ],
+      "baseline_roots": [
+        [
+          0.9574634728753599,
+          0.2226485873617933
+        ],
+        [
+          0.9766024914372317,
+          -0.11205447162153082
+        ],
+        [
+          0.9814068304457272,
+          0.0561191387358553
+        ],
+        [
+          0.9686126780179793,
+          -0.16762524221658193
+        ],
+        [
+          0.9431912144688552,
+          -0.27694592958281167
+        ],
+        [
+          0.9431912124174981,
+          0.2769459326808227
+        ],
+        [
+          0.968612713789791,
+          0.16762504925128136
+        ],
+        [
+          0.9766024709041874,
+          0.11205476103869519
+        ],
+        [
+          0.9814068377789188,
+          -0.056118926922931994
+        ],
+        [
+          0.9574634778477709,
+          -0.22264856492778715
+        ]
+      ],
+      "candidate_roots": [],
+      "candidate_accepted": false,
+      "failure_reason": "DidNotConverge",
+      "compatibility_root_count": 0,
+      "diagnostics": {
+        "iterations": 200,
+        "max_relative_step": 3.1603620943284435e-07,
+        "max_relative_residual": 3.099805715207707e-17,
+        "max_conjugate_mismatch": 2.9014462073336404e-07,
+        "unpaired_nonreal_roots": 0,
+        "coefficient_backward_error": 1.7179690214702735e-07
+      },
+      "baseline": {
+        "n_roots": 10,
+        "finite": true,
+        "complete": true,
+        "n_upper_half": 5,
+        "max_matching_root_error": 2.6542829651425544e-07,
+        "max_matching_conjugate_error": 2.9014462073336404e-07,
+        "max_relative_residual": 3.099805715207707e-17,
+        "coefficient_backward_error": 1.7179690214702735e-07
+      },
+      "candidate": {
+        "n_roots": 0,
+        "finite": true,
+        "complete": false,
+        "n_upper_half": 0,
+        "max_matching_root_error": null,
+        "max_matching_conjugate_error": null,
+        "max_relative_residual": null,
+        "coefficient_backward_error": null
+      }
+    },
+    {
+      "case": "repeated_pairs",
+      "coefficients": [
+        -9.686126993780668,
+        42.35996600777342,
+        -110.14016869260249,
+        188.54877435697253,
+        -222.05346103672792,
+        182.19632299317402,
+        -102.84366048428791,
+        38.221109156221935,
+        -8.445273835857193,
+        0.8425185499217622
+      ],
+      "expected_roots": [
+        [
+          0.9686126993780668,
+          0.16762502494107395
+        ],
+        [
+          0.9686126993780668,
+          -0.16762502494107395
+        ],
+        [
+          0.9686126993780668,
+          0.16762502494107395
+        ],
+        [
+          0.9686126993780668,
+          -0.16762502494107395
+        ],
+        [
+          0.9686126993780668,
+          0.16762502494107395
+        ],
+        [
+          0.9686126993780668,
+          -0.16762502494107395
+        ],
+        [
+          0.9686126993780668,
+          0.16762502494107395
+        ],
+        [
+          0.9686126993780668,
+          -0.16762502494107395
+        ],
+        [
+          0.9686126993780668,
+          0.16762502494107395
+        ],
+        [
+          0.9686126993780668,
+          -0.16762502494107395
+        ]
+      ],
+      "baseline_roots": [
+        [
+          0.9631575230280975,
+          0.16857806282257665
+        ],
+        [
+          0.9723342646837384,
+          -0.16507144649690936
+        ],
+        [
+          0.9725356106945503,
+          0.16428993271491268
+        ],
+        [
+          0.9739015611900779,
+          -0.17057591371020636
+        ],
+        [
+          0.9681151605163708,
+          -0.1726010549120038
+        ],
+        [
+          0.9677376484346046,
+          0.17224456582697756
+        ],
+        [
+          0.9731768978449905,
+          0.1701323537848553
+        ],
+        [
+          0.9662002158331136,
+          0.1625835856762785
+        ],
+        [
+          0.9660560727169143,
+          -0.16237251738525302
+        ],
+        [
+          0.9638935958582262,
+          -0.1682676914953591
+        ]
+      ],
+      "candidate_roots": [],
+      "candidate_accepted": false,
+      "failure_reason": "DidNotConverge",
+      "compatibility_root_count": 0,
+      "diagnostics": {
+        "iterations": 200,
+        "max_relative_step": 0.0011674986943082156,
+        "max_relative_residual": 3.525200942468376e-17,
+        "max_conjugate_mismatch": 0.0008496366111995405,
+        "unpaired_nonreal_roots": 0,
+        "coefficient_backward_error": 0.0007046568952578508
+      },
+      "baseline": {
+        "n_roots": 10,
+        "finite": true,
+        "complete": true,
+        "n_upper_half": 5,
+        "max_matching_root_error": 0.006056385373664771,
+        "max_matching_conjugate_error": 0.0008496366111995405,
+        "max_relative_residual": 3.525200942468376e-17,
+        "coefficient_backward_error": 0.0007046568952578508
+      },
+      "candidate": {
+        "n_roots": 0,
+        "finite": true,
+        "complete": false,
+        "n_upper_half": 0,
+        "max_matching_root_error": null,
+        "max_matching_conjugate_error": null,
+        "max_relative_residual": null,
+        "coefficient_backward_error": null
+      }
+    },
+    {
+      "case": "real_and_complex_quartic",
+      "coefficients": [
+        1.0,
+        -5.0,
+        1.0,
+        -6.0
+      ],
+      "expected_roots": [
+        [
+          -3.0,
+          0.0
+        ],
+        [
+          2.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          -1.0
+        ]
+      ],
+      "baseline_roots": [
+        [
+          -2.7791108771843323e-18,
+          1.0
+        ],
+        [
+          2.0,
+          0.0
+        ],
+        [
+          -3.0,
+          0.0
+        ],
+        [
+          6.835252223030636e-19,
+          -1.0
+        ]
+      ],
+      "candidate_roots": [
+        [
+          -2.7791108771843323e-18,
+          1.0
+        ],
+        [
+          2.0,
+          0.0
+        ],
+        [
+          -3.0,
+          0.0
+        ],
+        [
+          6.835252223030636e-19,
+          -1.0
+        ]
+      ],
+      "candidate_accepted": true,
+      "failure_reason": null,
+      "compatibility_root_count": 4,
+      "diagnostics": {
+        "iterations": 8,
+        "max_relative_step": 1.2663623787419396e-16,
+        "max_relative_residual": 1.1910475187932854e-18,
+        "max_conjugate_mismatch": 3.462636099487396e-18,
+        "unpaired_nonreal_roots": 0,
+        "coefficient_backward_error": 3.462636099487396e-18
+      },
+      "baseline": {
+        "n_roots": 4,
+        "finite": true,
+        "complete": true,
+        "n_upper_half": 1,
+        "max_matching_root_error": 2.7791108771843323e-18,
+        "max_matching_conjugate_error": 3.462636099487396e-18,
+        "max_relative_residual": 1.1910475187932854e-18,
+        "coefficient_backward_error": 3.462636099487396e-18
+      },
+      "candidate": {
+        "n_roots": 4,
+        "finite": true,
+        "complete": true,
+        "n_upper_half": 1,
+        "max_matching_root_error": 2.7791108771843323e-18,
+        "max_matching_conjugate_error": 3.462636099487396e-18,
+        "max_relative_residual": 1.1910475187932854e-18,
+        "coefficient_backward_error": 3.462636099487396e-18
+      }
+    },
+    {
+      "case": "zero_linear_root",
+      "coefficients": [
+        0.0
+      ],
+      "expected_roots": [
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "baseline_roots": [
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "candidate_roots": [
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "candidate_accepted": true,
+      "failure_reason": null,
+      "compatibility_root_count": 1,
+      "diagnostics": {
+        "iterations": 2,
+        "max_relative_step": 0.0,
+        "max_relative_residual": 0.0,
+        "max_conjugate_mismatch": 0.0,
+        "unpaired_nonreal_roots": 0,
+        "coefficient_backward_error": 0.0
+      },
+      "baseline": {
+        "n_roots": 1,
+        "finite": true,
+        "complete": true,
+        "n_upper_half": 0,
+        "max_matching_root_error": 0.0,
+        "max_matching_conjugate_error": 0.0,
+        "max_relative_residual": 0.0,
+        "coefficient_backward_error": 0.0
+      },
+      "candidate": {
+        "n_roots": 1,
+        "finite": true,
+        "complete": true,
+        "n_upper_half": 0,
+        "max_matching_root_error": 0.0,
+        "max_matching_conjugate_error": 0.0,
+        "max_relative_residual": 0.0,
+        "coefficient_backward_error": 0.0
+      }
+    }
+  ],
+  "checks": [
+    {
+      "case": "well_separated",
+      "check": "complete accurate control accepted",
+      "root_error_tolerance": 1e-10,
+      "passed": true
+    },
+    {
+      "case": "close_pairs",
+      "check": "complete accurate control accepted",
+      "root_error_tolerance": 1e-10,
+      "passed": true
+    },
+    {
+      "case": "clustered_low",
+      "check": "unresolved cluster rejected without emitted roots",
+      "passed": true
+    },
+    {
+      "case": "real_and_complex_quartic",
+      "check": "complete accurate control accepted",
+      "root_error_tolerance": 1e-10,
+      "passed": true
+    },
+    {
+      "case": "zero_linear_root",
+      "check": "complete accurate control accepted",
+      "root_error_tolerance": 1e-10,
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "generated_at_utc": "2026-10-14T08:20:39.673645+00:00",
+  "purpose": "Numerical acceptance on fixed polynomials, not speech or formant-identity accuracy",
+  "limitations": "Coefficient rounding changes clustered roots; backward error does not bound forward error. Wider low-frequency and repeated-pair cases are descriptive controls, not acceptance targets.",
+  "resonance_construction": "Conjugate pairs at sample rate 11000 Hz, radius exp(-pi*bandwidth/11000). Real polynomial coefficients are multiplied in f64; intended roots are retained separately.",
+  "source_sha256": {
+    "baseline": "d17a9f543f3314f0af65fb42c75f38785985bbf5d417fa7b7f93536c2cdb3229",
+    "candidate": "06cc90ad97904920369b2ba882bf8da79aac1671f0de10b011accfe380ddf1c7",
+    "baseline_root_source": "d17a9f543f3314f0af65fb42c75f38785985bbf5d417fa7b7f93536c2cdb3229",
+    "baseline_original_full_source": "e72a7a760848e7198e43cb0e2b3da2c908585e107821c001f3ec5b277c01d724",
+    "driver": "c5a9784c57e41abf6f9327769a9db52f07b1439a6a19c4cd66dece4e08935954",
+    "script": "7584933af8ba62a7e617bb158ca02d86441aaef7433dc75f7b69da782681087a",
+    "rustfft_rlib": "6db21f7fad423dfc6bd6bed67fa19cedeed62accdc9c9d03f48dc15bb2ad0409"
+  },
+  "baseline_source_kind": "embedded_frozen_root_function",
+  "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "compile_command": [
+    "rustc",
+    "--edition=2021",
+    "-O",
+    "/var/folders/7w/11b1bt3x5pl3pndj0sdw5fh00000gn/T/openphon-root-proof-bw6q2ybc/main.rs",
+    "--extern",
+    "rustfft=/Users/emma/Projects/openphon-release/core/target/release/deps/librustfft-c357a3016041f804.rlib",
+    "-L",
+    "dependency=/Users/emma/Projects/openphon-release/core/target/release/deps",
+    "-o",
+    "/var/folders/7w/11b1bt3x5pl3pndj0sdw5fh00000gn/T/openphon-root-proof-bw6q2ybc/root-proof"
+  ],
+  "artifact_directory": "/var/folders/7w/11b1bt3x5pl3pndj0sdw5fh00000gn/T/openphon-root-proof-bw6q2ybc"
+}

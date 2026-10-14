@@ -949,7 +949,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupDone.
   ///
   /// In en, this message translates to:
-  /// **'Backed up {count} recording(s) with manifest.csv'**
+  /// **'Backed up {count} recording(s) in a restorable ZIP archive'**
   String backupDone(int count);
 
   /// No description provided for @libraryEmpty.
@@ -1071,6 +1071,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} recording(s) skipped: their pitch edits were made at non-default pitch settings'**
   String skippedPitchEditMismatch(int count);
+
+  /// No description provided for @analysisIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Measurements are unavailable until all analyses finish.'**
+  String get analysisIncomplete;
+
+  /// No description provided for @analysisFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Analysis failed: {error}'**
+  String analysisFailed(String error);
+
+  /// No description provided for @analysisSettingsSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Analysis settings could not be saved: {error}'**
+  String analysisSettingsSaveFailed(String error);
+
+  /// No description provided for @analysisSettingsReadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved analysis settings could not be read: {error}'**
+  String analysisSettingsReadFailed(String error);
+
+  /// No description provided for @analysisPitchBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolve the saved pitch corrections before exporting measurements.'**
+  String get analysisPitchBlocked;
+
+  /// No description provided for @invalidPitchRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Pitch ceiling must be greater than pitch floor.'**
+  String get invalidPitchRange;
+
+  /// No description provided for @restorePitchSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore pitch settings'**
+  String get restorePitchSettings;
+
+  /// No description provided for @batchTierTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an interval tier'**
+  String get batchTierTitle;
+
+  /// No description provided for @batchTierBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Measure this tier name across the library using each recording’s saved analysis settings. Recordings without exactly one matching tier will be listed as excluded.'**
+  String get batchTierBody;
+
+  /// No description provided for @measureLibraryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Measure library'**
+  String get measureLibraryAction;
+
+  /// No description provided for @batchNoTextGrid.
+  ///
+  /// In en, this message translates to:
+  /// **'No saved TextGrid'**
+  String get batchNoTextGrid;
+
+  /// No description provided for @batchMissingTier.
+  ///
+  /// In en, this message translates to:
+  /// **'No interval tier named “{tier}”'**
+  String batchMissingTier(String tier);
+
+  /// No description provided for @batchAmbiguousTier.
+  ///
+  /// In en, this message translates to:
+  /// **'More than one interval tier named “{tier}”'**
+  String batchAmbiguousTier(String tier);
+
+  /// No description provided for @batchExportReportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Library measurement report'**
+  String get batchExportReportTitle;
+
+  /// No description provided for @batchExportReportBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{rows} rows from {files} recordings; {excluded} recordings excluded. Export includes a JSON record of the settings, source checksums and every exclusion.'**
+  String batchExportReportBody(int rows, int files, int excluded);
+
+  /// No description provided for @exportResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Export results'**
+  String get exportResults;
+
+  /// No description provided for @restoreLibraryMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore library backup…'**
+  String get restoreLibraryMenu;
+
+  /// No description provided for @preparingLibraryBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing library backup…'**
+  String get preparingLibraryBackup;
+
+  /// No description provided for @validatingLibraryBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Validating every backup file…'**
+  String get validatingLibraryBackup;
+
+  /// No description provided for @restoringLibraryBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Restoring recordings…'**
+  String get restoringLibraryBackup;
+
+  /// No description provided for @selectOneBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Select one openphon ZIP backup at a time.'**
+  String get selectOneBackup;
+
+  /// No description provided for @restoreDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored {count} recording(s). Existing recordings were retained.'**
+  String restoreDone(int count);
+
+  /// No description provided for @restoreFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore failed: {error}'**
+  String restoreFailed(String error);
 }
 
 class _AppLocalizationsDelegate

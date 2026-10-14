@@ -12,7 +12,7 @@ Rust/Cargo. From this directory:
 
 ```sh
 python fetch_public.py
-python -m unittest test_release_check test_audio_identity test_sample_public test_fetch_public
+python -m unittest discover -p 'test_*.py'
 python release_check.py --out release_report.json
 cargo build --locked --release --manifest-path ../core/Cargo.toml --example voice_report --example spectral_moments
 python voice_quality_check.py
@@ -28,7 +28,7 @@ and incomplete scoring are errors.
 
 The report records source and manifest hashes, environment versions,
 per-file results, coverage and every threshold. `all_targets_passed`
-reports the numerical outcome independently of CI policy. Every synthetic
+reports the existing raw-track outcome independently of CI policy. Every raw synthetic
 and public track gate passes and is enforced; public voicing agreement
 measures 95.07410% against a target above 90%. No threshold was changed.
 The pitch tracker's level term and unvoiced cost changed on 30 September;
@@ -42,10 +42,50 @@ OPENPHON_SILENCE_THRESHOLD=...`).
 grid. Default settings are a 10 ms step, F0 range 75–600 Hz, five formants,
 a 5500 Hz ceiling, a 25 ms formant window and pre-emphasis from 50 Hz.
 The release pitch unvoiced cost is 0.475, with a silence threshold of 0.03
-of the recording's absolute peak. Formants are compared without the
-application's 400 Hz bandwidth filter; the results describe this raw
-candidate configuration. Public F0 and formant deviations use frames
-both pitch trackers call voiced.
+of the recording's absolute peak. Existing gates compare raw formant candidates
+without the application's 400 Hz bandwidth filter. A second invocation of
+`tracks_csv` uses `FormantParams::default()` including that filter, and
+`displayed_formants` reports both configurations on the same frame grid.
+Public F0 and formant deviations use frames both pitch trackers call voiced.
+
+The additional formant evidence keeps each labelled Fk slot. It reports the
+number of eligible frames, each method's missing slots, paired comparisons,
+median and signed median deviation, RMSE, p95, p99 and maximum absolute
+deviation. Errors require two finite positive values; missingness is
+reported against all eligible frames and is never converted to a 0 Hz error.
+These conditional errors must therefore be read with their coverage.
+
+Formant preprocessing revision 2 was checked on the 168-recording calibration
+subset, then frozen and scored once on the 192-recording evaluation subset.
+The calibration summary is [release_formant_calibration.json](release_formant_calibration.json).
+The shipped configuration still fails the unchanged synthetic F2/F3 RMSE
+targets and the public F3 median target when compared with raw Praat slots. These same-target comparisons are explicit
+diagnostics and do not change existing gates or exit status. The
+`all_targets_passed` field still means raw gates only;
+`displayed_formants.all_same_targets_passed` reports the additional outcome.
+See [the numerical report](../docs/VALIDATION.md#shipped-formant-results).
+The new `matched_filter_control` filters Praat candidates at the same inclusive
+400 Hz bandwidth limit before alignment and compacts their numbered slots.
+All six matched-policy comparisons meet the existing targets. Its
+`common_support_control` compares the two reference policies on identical
+frame triples, so changes in paired coverage cannot explain that comparison.
+Raw-reference results and missingness remain in the report. Neither the
+bandwidth cutoff nor any threshold was tuned.
+
+Revision 2 removes DC before resampling and before the Gaussian window, scales
+the resampling kernel with the rate ratio, normalizes its gain, and computes
+exterior-root bandwidth from the reciprocal radius. The
+[native preprocessing evidence](release_resampling_check.json) records an
+old/new source comparison. Revision 3 adds finite, convergence, residual,
+conjugacy and complete-polynomial checks to the root solver. Unresolved sets
+produce missing formants. The [native proof](release_root_solver_check.json)
+includes an explicitly conservative rejection control; the
+[calibration record](release_root_calibration.json) shows unchanged benchmark
+scores and coverage after fixed checks and one evaluation run. Correction of
+these operations does not imply general resonance-estimation improvement.
+Develop candidates with `python release_check.py --split calib --out calibration.json`.
+Only the selected subset is copied for reference generation and scoring;
+all manifest hashes and the full speaker partition are still verified.
 
 The synthetic tier contains 19 gated signals, including vowel sources,
 transitions, a glide, different sampling rates, noise and a whispered
@@ -103,7 +143,7 @@ release source selection.
 | Synthetic | Voicing agreement | > 99% |
 | Synthetic | Median absolute F0 deviation | < 2 Hz |
 | Synthetic | F1/F2/F3 RMSE | < 150/250/350 Hz |
-| Public evaluation | Voicing agreement | > 90%, report-only in CI |
+| Public evaluation | Voicing agreement | > 90% |
 | Public evaluation | Median absolute F0 deviation | < 2 Hz |
 | Public evaluation | Median absolute F1/F2/F3 deviation | < 15/45/75 Hz |
 | Voice quality | Mean absolute HNR deviation | < 2 dB, with two existing clean-signal exclusions |
@@ -121,7 +161,39 @@ exponent 2. Both scripts exit nonzero if an enforced aggregate check fails.
 
 ## Continuous integration
 
-`formant_grid.py` reports formant error against known synthesis poles.
+`formant_grid.py` reports raw and shipped formant error against known synthesis
+poles across 252 cells. Labelled Fk error is primary; monotone pole assignment
+is a separate diagnostic and preserves original column indices when counting
+label shifts. Both reports retain fully missing slots, per-slot denominators
+and error tails. Aggregate quantiles pool frame errors, not cell medians.
+Missing grid recordings are errors. The retained run is
+[release_formant_grid.json](release_formant_grid.json). Reproduce it with
+`python synthesize.py --grid` and
+`python formant_grid.py --out release_formant_grid.json`.
+`formant_diagnosis.py` separately generates fresh signals and reports candidate
+loss in regions defined by known synthesis poles. The fixed conflicting pair
+of cutoff examples and source hashes are retained in
+[release_formant_diagnosis.json](release_formant_diagnosis.json). It reads no
+public speech. Reproduce it with
+`python formant_diagnosis.py --out release_formant_diagnosis.json`.
+`root_solver_check.py` compiles the preceding root function, embedded in the
+script, and the current solver on fixed polynomials. Run it after building the
+release core. `temporal_formant_check.py` evaluates a fixed offline selector
+against 32 fresh transition/control fixtures and the 252-cell steady grid.
+Its protocol precedes scoring and includes a no-continuity ablation. The
+candidate passes the synthetic screen, but the ablation has identical scores
+in the scored accuracy regions;
+continuity itself has no demonstrated benefit in that screen. The experiment
+does not change production selection. See the
+[protocol](temporal_formant_protocol.json) and
+[report](release_temporal_formant_check.json).
+`temporal_formant_challenge.py` then applies the unchanged method to the existing
+19 synthetic signals with broader resonance ranges. This additional check was
+designed after the first screen and records that chronology. It finds large
+labelled-error regressions without missing estimates; the selector remains
+experimental. Its [report](release_temporal_formant_challenge.json) retains
+frame traces and exact ablation differences. Both experiment commands return
+success for a completed negative result; missing data or changed sources fail.
 `.github/workflows/validation.yml` runs core and CLI tests, synthetic,
 voice-quality and spectral checks, and the isolated public release check.
 The application build and integration workflow is separate, at

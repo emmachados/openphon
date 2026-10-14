@@ -2,13 +2,13 @@
 //!
 //! Usage: tracks_csv <file.wav> <out_dir> [raw]
 //! Writes <stem>.pitch.csv (time_s,f0_hz; 0 = unvoiced) and
-//! <stem>.formant.csv (time_s,f1_hz..f5_hz; 0 = missing), matching
+//! <stem>.formant.csv (time_s,f1_hz..f5_hz,b1_hz..b5_hz; 0 = missing), matching
 //! the column layout of validation/generate_references.py.
 //!
 //! `raw` disables the bandwidth-based candidate filter so the output is
 //! label-compatible with Praat's To Formant (burg), which reports every
-//! pole in band. The app default keeps the filter; the validation gate
-//! must compare like-for-like.
+//! pole in band. With no `raw` argument, the exact shipped defaults apply.
+//! Validation reports both paths; the existing gates remain on raw tracks.
 //!
 //! `OPENPHON_UNVOICED_COST` and `OPENPHON_SILENCE_THRESHOLD` override the
 //! pitch tracker's unvoiced candidate cost (CMNDF units) and silence
@@ -67,10 +67,10 @@ fn main() {
     std::fs::write(format!("{out_dir}/{stem}.pitch.csv"), csv).unwrap();
 
     let raw = args.next().as_deref() == Some("raw");
-    let fparams = formant::FormantParams {
-        max_bandwidth_hz: if raw { f64::INFINITY } else { 400.0 },
-        ..Default::default()
-    };
+    let mut fparams = formant::FormantParams::default();
+    if raw {
+        fparams.max_bandwidth_hz = f64::INFINITY;
+    }
     let ft = formant::track_formants(&w.samples, w.sample_rate, &fparams);
     // Five columns, not three. Scoring a formant track against known
     // synthesis poles needs every pole the tracker found: an LPC fit asked
@@ -82,12 +82,18 @@ fn main() {
     for i in 1..=n_cols {
         write!(csv, ",f{i}_hz").unwrap();
     }
+    for i in 1..=n_cols {
+        write!(csv, ",b{i}_hz").unwrap();
+    }
     csv.push('\n');
     for fr in &ft.frames {
         let get = |i: usize| fr.formants_hz.get(i).copied().unwrap_or(0.0);
         write!(csv, "{:.6}", fr.time_s).unwrap();
         for i in 0..n_cols {
             write!(csv, ",{:.3}", get(i)).unwrap();
+        }
+        for i in 0..n_cols {
+            write!(csv, ",{}", fr.bandwidths_hz.get(i).copied().unwrap_or(0.0)).unwrap();
         }
         csv.push('\n');
     }

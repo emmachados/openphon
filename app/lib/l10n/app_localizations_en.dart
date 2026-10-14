@@ -497,7 +497,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String backupDone(int count) {
-    return 'Backed up $count recording(s) with manifest.csv';
+    return 'Backed up $count recording(s) in a restorable ZIP archive';
   }
 
   @override
@@ -570,5 +570,94 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String skippedPitchEditMismatch(int count) {
     return '$count recording(s) skipped: their pitch edits were made at non-default pitch settings';
+  }
+
+  @override
+  String get analysisIncomplete =>
+      'Measurements are unavailable until all analyses finish.';
+
+  @override
+  String analysisFailed(String error) {
+    return 'Analysis failed: $error';
+  }
+
+  @override
+  String analysisSettingsSaveFailed(String error) {
+    return 'Analysis settings could not be saved: $error';
+  }
+
+  @override
+  String analysisSettingsReadFailed(String error) {
+    return 'Saved analysis settings could not be read: $error';
+  }
+
+  @override
+  String get analysisPitchBlocked =>
+      'Resolve the saved pitch corrections before exporting measurements.';
+
+  @override
+  String get invalidPitchRange =>
+      'Pitch ceiling must be greater than pitch floor.';
+
+  @override
+  String get restorePitchSettings => 'Restore pitch settings';
+
+  @override
+  String get batchTierTitle => 'Choose an interval tier';
+
+  @override
+  String get batchTierBody =>
+      'Measure this tier name across the library using each recording’s saved analysis settings. Recordings without exactly one matching tier will be listed as excluded.';
+
+  @override
+  String get measureLibraryAction => 'Measure library';
+
+  @override
+  String get batchNoTextGrid => 'No saved TextGrid';
+
+  @override
+  String batchMissingTier(String tier) {
+    return 'No interval tier named “$tier”';
+  }
+
+  @override
+  String batchAmbiguousTier(String tier) {
+    return 'More than one interval tier named “$tier”';
+  }
+
+  @override
+  String get batchExportReportTitle => 'Library measurement report';
+
+  @override
+  String batchExportReportBody(int rows, int files, int excluded) {
+    return '$rows rows from $files recordings; $excluded recordings excluded. Export includes a JSON record of the settings, source checksums and every exclusion.';
+  }
+
+  @override
+  String get exportResults => 'Export results';
+
+  @override
+  String get restoreLibraryMenu => 'Restore library backup…';
+
+  @override
+  String get preparingLibraryBackup => 'Preparing library backup…';
+
+  @override
+  String get validatingLibraryBackup => 'Validating every backup file…';
+
+  @override
+  String get restoringLibraryBackup => 'Restoring recordings…';
+
+  @override
+  String get selectOneBackup => 'Select one openphon ZIP backup at a time.';
+
+  @override
+  String restoreDone(int count) {
+    return 'Restored $count recording(s). Existing recordings were retained.';
+  }
+
+  @override
+  String restoreFailed(String error) {
+    return 'Restore failed: $error';
   }
 }

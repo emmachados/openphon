@@ -12,6 +12,7 @@ import '../data/database.dart';
 import '../data/annotation_storage.dart';
 import '../rust/api/core.dart' as rust;
 import 'analysis_settings.dart';
+import 'analysis_track_loader.dart';
 import 'pitch_edits.dart' as pe;
 import 'spectrogram_image.dart';
 
@@ -94,6 +95,8 @@ class EnvelopeSlice {
 
 const double kMinViewportSpanS = 0.02;
 
+enum AnalysisTrackKind { pitch, intensity, formants }
+
 /// State hub for one open recording: Rust sound handle, playback,
 /// viewport, selection, cursor. Widgets listen and repaint.
 class AnalysisController extends ChangeNotifier {
@@ -103,10 +106,21 @@ class AnalysisController extends ChangeNotifier {
     this.writeAnnotation = writeAnnotationAtomically,
     this.readPitchEdits = pe.readPitchEdits,
     this.writePitchEdits = pe.writePitchEdits,
+    this.trackLoader,
     AnalysisSettings? defaultSettings,
   }) : settings = recording.analysisSettingsJson == null
            ? (defaultSettings ?? const AnalysisSettings())
-           : AnalysisSettings.fromJson(recording.analysisSettingsJson!);
+           : AnalysisSettings.fromJson(recording.analysisSettingsJson!) {
+    final stored = recording.analysisSettingsJson;
+    try {
+      if (stored != null) {
+        settings = AnalysisSettings.fromJson(stored, strict: true);
+      }
+      settings.validate();
+    } on FormatException catch (e) {
+      settingsReadError = e;
+    }
+  }
 
   final Recording recording;
 
@@ -123,6 +137,8 @@ class AnalysisController extends ChangeNotifier {
   final Future<rust.PitchEditsData?> Function(String absWavPath) readPitchEdits;
   final Future<void> Function(String absWavPath, rust.PitchEditsData? data)
   writePitchEdits;
+
+  final AnalysisTrackLoader? trackLoader;
 
   AnalysisSettings settings;
 
@@ -192,6 +208,7 @@ class AnalysisController extends ChangeNotifier {
   /// file is not overwritten unless the user discards it.
   Object? pitchEditsUnreadable;
   Future<void> _pitchSave = Future.value();
+  bool _discardingPitchEdits = false;
 
   /// Stored edits exist but were made at other pitch settings, so they are
   /// neither shown nor editable until those settings return or the edits
@@ -201,8 +218,38 @@ class AnalysisController extends ChangeNotifier {
 
   rust.IntensityTrackData? intensityTrack;
   rust.FormantTrackData? formantTrack;
-  bool get tracksLoading => _tracksPending > 0;
-  int _tracksPending = 0;
+  final _trackGenerations = <AnalysisTrackKind, int>{};
+  final _loadingTracks = <AnalysisTrackKind>{};
+  final _trackErrors = <AnalysisTrackKind, Object>{};
+  bool get tracksLoading => _loadingTracks.isNotEmpty;
+  Map<AnalysisTrackKind, Object> get trackErrors =>
+      Map.unmodifiable(_trackErrors);
+
+  Object? settingsSaveError;
+  Object? settingsReadError;
+  Future<void> _settingsSave = Future.value();
+
+  bool get pitchReady =>
+      settingsReadError == null &&
+      !_discardingPitchEdits &&
+      !_loadingTracks.contains(AnalysisTrackKind.pitch) &&
+      !_trackErrors.containsKey(AnalysisTrackKind.pitch) &&
+      f0Track != null &&
+      !pitchEditsMismatch &&
+      pitchEditsUnreadable == null;
+
+  bool get measurementsReady =>
+      !tracksLoading &&
+      _trackErrors.isEmpty &&
+      pitchReady &&
+      intensityTrack != null &&
+      formantTrack != null &&
+      settingsSaveError == null &&
+      pitchEditsError == null;
+
+  AnalysisTrackLoader? get _loader =>
+      trackLoader ??
+      (_sound == null ? null : SoundAnalysisTrackLoader(_sound!));
 
   /// TextGrid editing engine; null while no TextGrid is loaded.
   AnnotationEditor? annotation;
@@ -229,6 +276,8 @@ class AnalysisController extends ChangeNotifier {
         return;
       }
       _sound = sound;
+      // Fix the effective defaults to this recording when it is first opened.
+      if (recording.analysisSettingsJson == null) unawaited(_persistSettings());
       durationS = sound.durationS();
       if (durationS <= 0) durationS = 0.001;
       viewport = TimeViewport(0, durationS);
@@ -254,36 +303,43 @@ class AnalysisController extends ChangeNotifier {
   Future<void> loadTracks() =>
       Future.wait([_loadF0(), _loadIntensity(), _loadFormants()]).then((_) {});
 
-  Future<void> _runTrack(Future<void> Function() task) async {
-    _tracksPending++;
+  Future<void> _runTrack<T>(
+    AnalysisTrackKind kind,
+    Future<T> Function() task,
+    void Function(T) accept,
+  ) async {
+    final generation = (_trackGenerations[kind] ?? 0) + 1;
+    _trackGenerations[kind] = generation;
+    _loadingTracks.add(kind);
+    _trackErrors.remove(kind);
     _notify();
     final clock = Stopwatch()..start();
     try {
-      await task();
-    } catch (_) {
-      // Leave the track absent; overlays simply skip it.
+      final result = await task();
+      if (!_disposed && _trackGenerations[kind] == generation) accept(result);
+    } catch (e) {
+      if (!_disposed && _trackGenerations[kind] == generation) {
+        _trackErrors[kind] = e;
+      }
     }
     if (kDebugMode || kProfileMode) {
       debugPrint('perf: track ${clock.elapsedMilliseconds} ms');
     }
-    _tracksPending--;
+    if (_trackGenerations[kind] == generation) _loadingTracks.remove(kind);
     _notify();
   }
 
   Future<void> _loadF0() {
-    final sound = _sound;
-    if (sound == null) return Future.value();
+    final loader = _loader;
+    if (loader == null) return Future.value();
+    final requested = settings;
     f0Track = null;
     f0Candidates = null;
     f0EditedMask = null;
     pitchEditor = null;
-    return _runTrack(() async {
-      final c = await sound.f0Candidates(
-        timeStepS: trackTimeStepS,
-        f0MinHz: pitchFloorHz,
-        f0MaxHz: pitchCeilingHz,
-      );
-      if (_disposed) return;
+    return _runTrack(AnalysisTrackKind.pitch, () => loader.pitch(requested), (
+      c,
+    ) {
       f0Candidates = c;
       final stored = storedPitchEdits;
       if (pitchEditsUnreadable != null) {
@@ -292,9 +348,9 @@ class AnalysisController extends ChangeNotifier {
         pitchEditor = _emptyPitchEditor(c);
       } else if (pe.pitchEditsMatch(
         stored,
-        timeStepS: trackTimeStepS,
-        floorHz: pitchFloorHz,
-        ceilingHz: pitchCeilingHz,
+        timeStepS: requested.trackTimeStepS,
+        floorHz: requested.pitchFloorHz,
+        ceilingHz: requested.pitchCeilingHz,
       )) {
         pitchEditor = pe.PitchEditor.fromData(c, stored);
       }
@@ -328,6 +384,7 @@ class AnalysisController extends ChangeNotifier {
   }
 
   bool _pitchOp(bool Function(pe.PitchEditor ed) op) {
+    if (_discardingPitchEdits) return false;
     final ed = pitchEditor;
     if (ed == null || !op(ed)) return false;
     _refreshF0();
@@ -354,6 +411,25 @@ class AnalysisController extends ChangeNotifier {
 
   /// Completes when every edit so far has been written.
   Future<void> get pitchEditsSaved => _pitchSave;
+
+  Future<void> retryPitchEditsSave() async {
+    if (_discardingPitchEdits) return;
+    final ed = pitchEditor;
+    if (ed != null) _persistPitchEdits(ed);
+    await _pitchSave;
+  }
+
+  Future<void> restorePitchSettings() async {
+    final stored = storedPitchEdits;
+    if (stored == null) return;
+    await applySettings(
+      settings.copyWith(
+        pitchFloorHz: stored.f0MinHz,
+        pitchCeilingHz: stored.f0MaxHz,
+        trackTimeStepS: stored.timeStepS,
+      ),
+    );
+  }
 
   /// Tap in the pitch plot at time [t] and height [frac] (0 = pitch floor,
   /// 1 = ceiling): chooses the candidate of the nearest frame closest to
@@ -398,46 +474,66 @@ class AnalysisController extends ChangeNotifier {
   /// current ones.
   Future<void> discardStoredPitchEdits() async {
     final abs = _absolutePath;
-    final c = f0Candidates;
-    if (abs == null || c == null) return;
-    storedPitchEdits = null;
-    pitchEditsUnreadable = null;
-    pitchEditor = _emptyPitchEditor(c);
-    _refreshF0();
+    if (abs == null || _discardingPitchEdits) return;
+    _discardingPitchEdits = true;
     _notify();
-    await (_pitchSave = _pitchSave.then((_) => writePitchEdits(abs, null)));
+    try {
+      Object? deletionError;
+      // Deletion follows all pending writes on the same queue. Editing and
+      // save retries stay blocked until deletion and the fresh track finish.
+      final deletion = _pitchSave.then((_) async {
+        try {
+          await writePitchEdits(abs, null);
+        } catch (e) {
+          deletionError = e;
+          pitchEditsError = e;
+          _notify();
+        }
+      });
+      _pitchSave = deletion;
+      await deletion;
+      if (deletionError != null) return;
+      storedPitchEdits = null;
+      pitchEditsUnreadable = null;
+      pitchEditsError = null;
+      // Settings or candidates may have changed during the write. Reload
+      // using current settings instead of reinstalling a captured editor.
+      if (!_disposed) await _loadF0();
+    } finally {
+      _discardingPitchEdits = false;
+      _notify();
+    }
   }
 
   Future<void> _loadIntensity() {
-    final sound = _sound;
-    if (sound == null) return Future.value();
+    final loader = _loader;
+    if (loader == null) return Future.value();
+    final requested = settings;
     intensityTrack = null;
-    return _runTrack(() async {
-      final t = await sound.intensity(
-        timeStepS: trackTimeStepS,
-        minPitchHz: intensityMinPitchHz,
-      );
-      if (!_disposed) intensityTrack = t;
-    });
+    return _runTrack(
+      AnalysisTrackKind.intensity,
+      () => loader.intensity(requested),
+      (t) => intensityTrack = t,
+    );
   }
 
   Future<void> _loadFormants() {
-    final sound = _sound;
-    if (sound == null) return Future.value();
+    final loader = _loader;
+    if (loader == null) return Future.value();
+    final requested = settings;
     formantTrack = null;
-    return _runTrack(() async {
-      final t = await sound.formants(
-        timeStepS: trackTimeStepS,
-        maxFormants: maxFormants,
-        ceilingHz: formantCeilingHz,
-      );
-      if (!_disposed) formantTrack = t;
-    });
+    return _runTrack(
+      AnalysisTrackKind.formants,
+      () => loader.formants(requested),
+      (t) => formantTrack = t,
+    );
   }
 
   /// Apply new settings: invalidate only what actually changed (image
   /// cache vs. individual tracks) and persist.
   Future<void> applySettings(AnalysisSettings next) async {
+    next.validate();
+    settingsReadError = null;
     final prev = settings;
     settings = next;
     final futures = <Future<void>>[];
@@ -450,12 +546,29 @@ class AnalysisController extends ChangeNotifier {
     if (next.intensityDiffers(prev)) futures.add(_loadIntensity());
     if (next.formantsDiffer(prev)) futures.add(_loadFormants());
     _notify();
-    final save = onSaveSettings;
-    if (save != null) {
-      futures.add(save(recording.id, next.toJson()));
-    }
+    futures.add(_persistSettings());
     await Future.wait(futures);
   }
+
+  /// Serialize writes so a slow previous update cannot replace newer settings.
+  Future<void> _persistSettings() {
+    final save = onSaveSettings;
+    if (save == null) return Future.value();
+    final json = settings.toJson();
+    _settingsSave = _settingsSave.then((_) async {
+      try {
+        await save(recording.id, json);
+        settingsSaveError = null;
+      } catch (e) {
+        settingsSaveError = e;
+      }
+      _notify();
+    });
+    return _settingsSave;
+  }
+
+  Future<void> retrySettingsSave() => _persistSettings();
+  Future<void> get settingsSaved => _settingsSave;
 
   String? get absolutePath => _absolutePath;
   rust.Sound? get sound => _sound;

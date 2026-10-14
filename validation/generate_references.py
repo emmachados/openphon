@@ -70,12 +70,16 @@ def main():
         )
         with open(REFS / f"{sub}{wav.stem}.formant.csv", "w", newline="") as f:
             w = csv.writer(f)
-            w.writerow(["time_s"] + [f"f{i}_hz" for i in range(1, N_FORMANT_COLS + 1)])
+            w.writerow(["time_s"] + [f"f{i}_hz" for i in range(1, N_FORMANT_COLS + 1)]
+                       + [f"b{i}_hz" for i in range(1, N_FORMANT_COLS + 1)])
             for t in fm.xs():
                 row = [f"{t:.6f}"]
                 for i in range(1, N_FORMANT_COLS + 1):
                     v = fm.get_value_at_time(i, t)
                     row.append("0.000" if (v is None or math.isnan(v)) else f"{v:.3f}")
+                for i in range(1, N_FORMANT_COLS + 1):
+                    bw = fm.get_bandwidth_at_time(i, t)
+                    row.append("nan" if (bw is None or not math.isfinite(bw)) else repr(float(bw)))
                 w.writerow(row)
         print("refs for", wav.stem)
 

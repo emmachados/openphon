@@ -32,6 +32,8 @@ Usage:
 """
 
 import argparse
+import hashlib
+import platform
 import json
 import math
 import subprocess
@@ -42,7 +44,8 @@ import numpy as np
 import parselmouth
 from parselmouth.praat import call
 
-from compare import assign_poles, build_core_binary, read_csv
+from compare import build_core_binary, read_csv
+from formant_evidence import truth_errors, summarize_errors
 
 HERE = Path(__file__).parent
 GRID = HERE / "wavs" / "formantgrid"
@@ -80,70 +83,35 @@ def praat_formants(snd, which):
 
 
 def score(t, F, poles):
-    """Labelled and assignment-corrected error for one track, one cell."""
+    """Score original Fk slots and a separate assignment diagnostic."""
     interior = (t >= MARGIN_S) & (t <= t.max() - MARGIN_S)
-    t, F = t[interior], F[interior]
-    n_true = len(poles)
-    lab = {k: [] for k in range(1, n_true + 1)}
-    asg = {k: [] for k in range(1, n_true + 1)}
-    n_shift = n_unmatched = n_scored = 0
-    for row in F:
-        present = [v for v in row if v > 0]
-        for k in range(1, min(n_true, len(row)) + 1):
-            if row[k - 1] > 0:
-                lab[k].append(row[k - 1] - poles[k - 1])
-        pick = assign_poles(present, poles)
-        n_scored += 1
-        # A shifted label and a missing pole are different failures and are
-        # counted apart.
-        if any(j is not None and j != k for k, j in enumerate(pick)):
-            n_shift += 1
-        if any(j is None for j in pick):
-            n_unmatched += 1
-        for k, j in enumerate(pick, start=1):
-            if j is not None:
-                asg[k].append(present[j] - poles[k - 1])
-
-    def summ(errs):
-        out = {}
-        for k, e in errs.items():
-            if not e:
-                continue
-            e = np.asarray(e)
-            out[f"F{k}"] = {
-                "n": int(len(e)),
-                "median_abs_err_hz": float(np.median(np.abs(e))),
-                "rmse_hz": float(np.sqrt(np.mean(e ** 2))),
-                "median_signed_err_hz": float(np.median(e)),
-            }
-        return out
-
-    return {"n_frames": n_scored,
-            "pct_label_shift": 100.0 * n_shift / max(n_scored, 1),
-            "pct_pole_unmatched": 100.0 * n_unmatched / max(n_scored, 1),
-            "labelled": summ(lab), "assigned": summ(asg)}
+    F = F[interior]
+    truth = np.tile(poles, (len(F), 1))
+    labelled, assigned, shifted, unmatched = truth_errors(F, truth)
+    n = len(F)
+    samples = {"labelled": {f"F{k + 1}": e for k, e in labelled.items()},
+               "assigned": {f"F{k + 1}": e for k, e in assigned.items()}}
+    return {"n_frames": n,
+            "pct_label_shift": 100.0 * shifted / n if n else None,
+            "pct_pole_unmatched": 100.0 * unmatched / n if n else None,
+            **{name: {k: summarize_errors(e, n) for k, e in values.items()}
+               for name, values in samples.items()},
+            "_errors": samples}
 
 
 def pooled(rows, who, scoring, k):
-    """Pool one method's error over a set of cells.
-
-    RMSE pools exactly from per-cell RMSE and counts. The median does not,
-    so the pooled figure reported here is the RMSE and the frame-weighted
-    mean of per-cell medians is named for what it is.
-    """
-    got = [r[who][scoring].get(k) for r in rows if k in r[who][scoring]]
-    got = [g for g in got if g]
-    n = sum(g["n"] for g in got)
-    if not n:
+    """Pool frame errors exactly, including quantiles and missing slots."""
+    cells = [r[who] for r in rows if k in r[who][scoring]]
+    if not cells:
         return None
-    return {
-        "n": n,
-        "rmse_hz": math.sqrt(sum(g["rmse_hz"] ** 2 * g["n"] for g in got) / n),
-        "mean_of_cell_median_abs_err_hz":
-            sum(g["median_abs_err_hz"] * g["n"] for g in got) / n,
-        "mean_of_cell_median_signed_err_hz":
-            sum(g["median_signed_err_hz"] * g["n"] for g in got) / n,
-    }
+    errors = [e for cell in cells for e in cell["_errors"][scoring][k]]
+    out = summarize_errors(errors, sum(cell["n_frames"] for cell in cells))
+    present = [cell[scoring][k] for cell in cells if cell[scoring][k]["n"]]
+    for metric in ("abs", "signed"):
+        out[f"mean_of_cell_median_{metric}_err_hz"] = (
+            sum(c[f"median_{metric}_err_hz"] * c["n"] for c in present) / out["n"]
+            if out["n"] else None)
+    return out
 
 
 def main():
@@ -159,13 +127,16 @@ def main():
 
     exe = build_core_binary()
     outdir = Path(tempfile.mkdtemp(prefix="openphon_grid_"))
-    methods = ["openphon", "praat_burg", "praat_sl", "praat_robust"]
+    methods = ["openphon", "openphon_shipped", "praat_burg", "praat_sl", "praat_robust"]
+    params = json.loads(subprocess.check_output([str(exe), "--params"], text=True))
+    if params["formant_max_bandwidth_hz"] != 400.0:
+        raise ValueError("Shipped grid evidence requires the 400 Hz default")
 
     rows = []
     for i, cell in enumerate(cells, 1):
         wav = GRID / f"{cell['stem']}.wav"
         if not wav.exists():
-            continue
+            raise FileNotFoundError(f"Missing synthesis cell: {wav}")
         poles = [float(x) for x in cell["poles_hz"]]
         snd = parselmouth.Sound(str(wav))
         subprocess.run([str(exe), str(wav), str(outdir), "raw"],
@@ -176,6 +147,11 @@ def main():
         row = {"stem": cell["stem"], "f0_hz": cell["f0_hz"],
                "f1_hz": poles[0], "f2_hz": poles[1], "n_poles": len(poles),
                "openphon": score(cols["time_s"], F_op, poles)}
+        subprocess.run([str(exe), str(wav), str(outdir)],
+                       check=True, capture_output=True)
+        shipped = read_csv(outdir / f"{wav.stem}.formant.csv")
+        F_shipped = np.column_stack([shipped[f"f{k}_hz"] for k in range(1, 6)])
+        row["openphon_shipped"] = score(shipped["time_s"], F_shipped, poles)
         for which in ("burg", "sl", "robust"):
             t, F = praat_formants(snd, which)
             row[f"praat_{which}"] = score(t, F, poles)
@@ -183,7 +159,20 @@ def main():
         if i % 25 == 0:
             print(f"  {i}/{len(cells)}", flush=True)
 
-    report = {"n_cells": len(rows), "margin_s": MARGIN_S,
+    sources = [HERE / name for name in ("formant_grid.py", "formant_evidence.py",
+                                        "compare.py", "synthesize.py")]
+    sources += [HERE.parent / "core/examples/tracks_csv.rs"]
+    sources += sorted((HERE.parent / "core/src").glob("*.rs"))
+    report = {"n_cells": len(rows), "n_expected_cells": len(cells), "margin_s": MARGIN_S,
+              "scoring": "Labelled Fk slots against known poles; assignment is a separate diagnostic. "
+                         "Missing slots retain their denominators. Errors and tails use present slots.",
+              "configurations": {"openphon": {"max_bandwidth_hz": None},
+                                 "openphon_shipped": {"max_bandwidth_hz": params["formant_max_bandwidth_hz"]}},
+              "source_sha256": {str(p.relative_to(HERE.parent)): hashlib.sha256(p.read_bytes()).hexdigest()
+                                for p in sources},
+              "truth_sha256": hashlib.sha256((GRID / "truth.json").read_bytes()).hexdigest(),
+              "environment": {"python": platform.python_version(), "numpy": np.__version__,
+                              "parselmouth": parselmouth.__version__, "platform": platform.platform()},
               "settings": {"time_step_s": TIME_STEP,
                            "max_formants": MAX_FORMANTS,
                            "formant_ceiling_hz": FORMANT_CEILING,
@@ -198,7 +187,7 @@ def main():
         report["pooled"][label] = {}
         for who in methods:
             for scoring in ("labelled", "assigned"):
-                for k in ("F1", "F2", "F3"):
+                for k in ("F1", "F2", "F3", "F4", "F5"):
                     p = pooled(subset, who, scoring, k)
                     if p:
                         report["pooled"][label][f"{who}.{scoring}.{k}"] = p
@@ -253,7 +242,10 @@ def main():
             for m in ("praat_burg", "openphon") for k in ("F1", "F2"))
         print(f"  {int(f0):<6}{line}")
 
-    Path(args.out).write_text(json.dumps(report, indent=2))
+    for row in rows:
+        for who in methods:
+            row[who].pop("_errors")
+    Path(args.out).write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
     print(f"\nwrote {args.out}")
     return 0
 

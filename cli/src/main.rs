@@ -205,9 +205,8 @@ fn info(args: &[String]) -> Result<(), String> {
         100.0 * voiced.len() as f64 / f0.f0_hz.len().max(1) as f64
     )
     .unwrap();
-    if !voiced.is_empty() {
-        voiced.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        writeln!(out, "F0 median = {:.1} Hz", voiced[voiced.len() / 2]).unwrap();
+    if let Some(median) = measure::median(&mut voiced) {
+        writeln!(out, "F0 median = {median:.1} Hz").unwrap();
     }
     let int = intensity::compute(&w.samples, w.sample_rate, &Default::default());
     let max_db = int.db.iter().fold(f64::NEG_INFINITY, |m, &d| m.max(d));

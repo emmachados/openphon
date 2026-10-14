@@ -24,6 +24,18 @@ VALIDATION = {
     "wavs/public/manifest.csv", "wavs/public/provenance.json",
     "audio_identity.py", "test_audio_identity.py", "test_sample_public.py",
     "fetch_public.py", "test_fetch_public.py", "public_audio_archive.json", "PUBLIC_AUDIO_LICENSES.md",
+    "formant_evidence.py", "test_formant_evidence.py", "release_formant_grid.json",
+    "formant_diagnosis.py", "test_formant_diagnosis.py", "release_formant_diagnosis.json",
+    "release_formant_calibration.json",
+    "release_resampling_check.json",
+    "root_solver_check.py", "test_root_solver_check.py", "release_root_solver_check.json",
+    "release_root_calibration.json",
+    "formant_transitions.py", "test_formant_transitions.py",
+    "temporal_formants.py", "test_temporal_formants.py", "temporal_formant_protocol.json",
+    "temporal_formant_check.py", "test_temporal_formant_check.py",
+    "release_temporal_formant_check.json",
+    "temporal_formant_challenge.py", "test_temporal_formant_challenge.py",
+    "release_temporal_formant_challenge.json",
 }
 EXCLUDED_PARTS = {
     "build", "target", ".dart_tool", ".git", ".gradle", "Pods", "ephemeral",

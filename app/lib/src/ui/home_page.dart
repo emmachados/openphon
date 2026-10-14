@@ -22,6 +22,8 @@ import '../data/app_prefs.dart';
 import '../data/database.dart';
 import '../data/file_exchange.dart';
 import '../data/library_backup.dart';
+import '../data/library_archive.dart';
+import '../analysis/library_measurements.dart';
 import '../data/wav_import.dart';
 import '../rust/api/core.dart' as rust_core;
 import 'analysis/analysis_view.dart';
@@ -337,215 +339,446 @@ class _HomePageState extends State<HomePage> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  /// Library-wide measurement export, the in-app twin of the CLI's
-  /// directory mode: every recording with a sibling TextGrid contributes
-  /// its first interval tier's labelled intervals, measured at the default
-  /// analysis parameters, to one CSV with a leading `file` column (the
-  /// recording's display name).
-  Future<void> _exportLibraryMeasurements() async {
-    final l10n = AppLocalizations.of(context)!;
-    final recordings = await widget.db.watchLibrary().first;
+  bool _libraryOperation = false;
+
+  Future<T> _withLibraryProgress<T>(
+    Future<T> Function(ValueNotifier<String> progress) action,
+  ) async {
     final progress = ValueNotifier<String>('');
-    if (!mounted) return;
-    // Barrier-only progress dialog; popped in the finally below.
-    showDialog<void>(
+    final dialog = showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: ValueListenableBuilder<String>(
-          valueListenable: progress,
-          builder: (context, label, _) => Row(
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(width: 16),
-              Expanded(child: Text(label)),
-            ],
+      builder: (_) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: ValueListenableBuilder<String>(
+            valueListenable: progress,
+            builder: (_, label, _) => Row(
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(width: 16),
+                Expanded(child: Text(label)),
+              ],
+            ),
           ),
         ),
       ),
     );
-    final files = <FileMeasures>[];
-    var skippedEdits = 0;
     try {
-      const s = AnalysisSettings();
-      for (var i = 0; i < recordings.length; i++) {
-        final r = recordings[i];
-        progress.value = l10n.measuringProgress(i + 1, recordings.length);
-        final abs = await toAbsolutePath(r.relativePath);
-        final grid = await findSiblingTextGrid(abs);
-        if (grid == null) continue;
-        try {
-          final doc = AnnotationDoc.fromTextGrid(
-            await rust_core.readTextGrid(path: grid.path),
-          );
-          final tier = doc.tiers.whereType<IntervalTierModel>().firstOrNull;
-          if (tier == null) continue;
-          var f0 = await rust_core.f0Track(
-            path: abs,
-            timeStepS: s.trackTimeStepS,
-            f0MinHz: s.pitchFloorHz,
-            f0MaxHz: s.pitchCeilingHz,
-          );
-          // Pitch edits apply as in the CLI; edits made at other settings
-          // exclude the recording, as the CLI refuses them.
-          List<bool>? edited;
-          final edits = await readPitchEdits(abs);
-          if (edits != null) {
-            if (!pitchEditsMatch(
-              edits,
-              timeStepS: s.trackTimeStepS,
-              floorHz: s.pitchFloorHz,
-              ceilingHz: s.pitchCeilingHz,
-            )) {
-              skippedEdits++;
-              continue;
-            }
-            final applied = applyPitchEdits(f0, edits);
-            f0 = applied.track;
-            edited = applied.edited;
-          }
-          final rows = measureIntervals(
-            tier,
-            f0: f0,
-            f0Edited: edited,
-            intensity: await rust_core.intensityTrack(
-              path: abs,
-              timeStepS: s.trackTimeStepS,
-              minPitchHz: s.intensityMinPitchHz,
-            ),
-            formants: await rust_core.formantTrack(
-              path: abs,
-              timeStepS: s.trackTimeStepS,
-              maxFormants: s.maxFormants,
-              ceilingHz: s.formantCeilingHz,
-            ),
-          );
-          if (rows.isEmpty) continue;
-          files.add(
-            FileMeasures(
-              file: sanitizeFileName(r.name),
-              tierName: tier.name,
-              rows: rows,
-              pitchEdited: edited != null,
-            ),
-          );
-        } catch (_) {
-          // Unreadable audio or TextGrid: skip, keep the batch going.
-        }
-      }
+      return await action(progress);
     } finally {
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
-    }
-    if (!mounted) return;
-    if (skippedEdits > 0) _snack(l10n.skippedPitchEditMismatch(skippedEdits));
-    if (files.isEmpty) {
-      if (skippedEdits == 0) _snack(l10n.noAnnotatedRecordings);
-      return;
-    }
-    final csv = batchMeasurementsCsv(files);
-    final rowCount = files.fold<int>(0, (n, f) => n + f.rows.length);
-    if (_useShareSheet) {
-      try {
-        final dir = await exportDirectory();
-        final path = '${dir.path}/library_measures.csv';
-        await File(path).writeAsString(csv);
-        if (!mounted) return;
-        await shareFilesFrom(context, [XFile(path, mimeType: 'text/csv')]);
-      } catch (e) {
-        _snack(l10n.exportFailed('$e'));
-      }
-      return;
-    }
-    const csvType = XTypeGroup(label: 'CSV', extensions: ['csv']);
-    final location = await getSaveLocation(
-      suggestedName: 'library_measures.csv',
-      acceptedTypeGroups: const [csvType],
-    );
-    if (location == null || !mounted) return;
-    try {
-      await File(location.path).writeAsString(csv);
-      _snack(l10n.libraryMeasurementsExported(rowCount, files.length));
-    } catch (e) {
-      _snack(l10n.exportFailed('$e'));
+      await dialog;
+      progress.dispose();
     }
   }
 
-  /// Copies every recording (WAV, sibling TextGrid, pitch edits) plus a
-  /// manifest.csv out of app-private storage, which uninstalling the app
-  /// erases.
-  /// Desktop: into a picked directory. Mobile: dart:io cannot write into
-  /// SAF tree URIs, so all files go through one multi-file share instead
-  /// (fine for dozens of recordings; Android intent size limits would
-  /// bite at thousands).
-  Future<void> _backupLibrary() async {
+  /// The same named tier is measured in every recording, using the settings
+  /// already saved for that recording. Every exclusion is retained in JSON.
+  Future<void> _exportLibraryMeasurements() async {
+    if (_libraryOperation) return;
+    _libraryOperation = true;
     final l10n = AppLocalizations.of(context)!;
-    final recordings = await widget.db.watchLibrary().first;
-    if (recordings.isEmpty) {
-      _snack(l10n.libraryEmpty);
-      return;
-    }
-    final rows = <(Recording, String, String?, String?)>[];
-    for (final r in recordings) {
-      final abs = await toAbsolutePath(r.relativePath);
-      final grid = await findSiblingTextGrid(abs);
-      final edits = rust_core.pitchEditsPath(wavPath: abs);
-      rows.add((r, abs, grid?.path, await File(edits).exists() ? edits : null));
-    }
-    final items = planBackup(rows, sanitizeFileName);
-    int sizeOf(String path) {
-      try {
-        return File(path).lengthSync();
-      } catch (_) {
-        return 0;
-      }
-    }
-
-    final manifest = backupManifestCsv(items, sizeOf);
     try {
-      if (_useShareSheet) {
-        final tmp = await exportDirectory();
-        final files = <XFile>[];
-        for (final it in items) {
-          final wavDest = p.join(tmp.path, '${it.stem}.wav');
-          await File(it.wavPath).copy(wavDest);
-          files.add(XFile(wavDest, mimeType: 'audio/x-wav'));
-          final grid = it.gridPath;
-          if (grid != null) {
-            final gridDest = p.join(tmp.path, '${it.stem}.TextGrid');
-            await File(grid).copy(gridDest);
-            files.add(XFile(gridDest, mimeType: 'text/plain'));
-          }
-          final edits = it.editsPath;
-          if (edits != null) {
-            final editsDest = p.join(tmp.path, '${it.stem}.pitchedits.csv');
-            await File(edits).copy(editsDest);
-            files.add(XFile(editsDest, mimeType: 'text/csv'));
-          }
-        }
-        final manifestPath = p.join(tmp.path, 'manifest.csv');
-        await File(manifestPath).writeAsString(manifest);
-        files.add(XFile(manifestPath, mimeType: 'text/csv'));
-        if (!mounted) return;
-        await shareFilesFrom(context, files);
+      if (!(await _analysisKey.currentState?.prepareLibraryExport() ?? true)) {
         return;
       }
-      final dirPath = await getDirectoryPath();
-      if (dirPath == null || !mounted) return;
-      for (final it in items) {
-        await File(it.wavPath).copy(p.join(dirPath, '${it.stem}.wav'));
-        final grid = it.gridPath;
-        if (grid != null) {
-          await File(grid).copy(p.join(dirPath, '${it.stem}.TextGrid'));
+      final recordings = await widget.db.watchLibrary().first;
+      if (!mounted) return;
+      final sources = <int, (String, String?, AnnotationDoc?, Object?)>{};
+      final tierNames = <String>{};
+      await _withLibraryProgress((progress) async {
+        for (var i = 0; i < recordings.length; i++) {
+          final r = recordings[i];
+          progress.value = l10n.measuringProgress(i + 1, recordings.length);
+          final abs = await toAbsolutePath(r.relativePath);
+          String? grid;
+          try {
+            grid = (await findSiblingTextGrid(abs))?.path;
+            final doc = grid == null
+                ? null
+                : AnnotationDoc.fromTextGrid(
+                    await rust_core.readTextGrid(path: grid),
+                  );
+            sources[r.id] = (abs, grid, doc, null);
+            if (doc != null) {
+              tierNames.addAll(
+                doc.tiers.whereType<IntervalTierModel>().map((t) => t.name),
+              );
+            }
+          } catch (e) {
+            sources[r.id] = (abs, grid, null, e);
+          }
         }
-        final edits = it.editsPath;
-        if (edits != null) {
-          await File(edits).copy(p.join(dirPath, '${it.stem}.pitchedits.csv'));
-        }
+      });
+      if (!mounted) return;
+      String? selectedTier;
+      if (tierNames.isNotEmpty) {
+        final names = tierNames.toList()..sort();
+        var choice = names.first;
+        selectedTier = await showDialog<String>(
+          context: context,
+          builder: (context) => StatefulBuilder(
+            builder: (context, setDialogState) => AlertDialog(
+              title: Text(l10n.batchTierTitle),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(l10n.batchTierBody),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: choice,
+                    isExpanded: true,
+                    items: names
+                        .map(
+                          (name) =>
+                              DropdownMenuItem(value: name, child: Text(name)),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) setDialogState(() => choice = value);
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(l10n.cancel),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context, choice),
+                  child: Text(l10n.measureLibraryAction),
+                ),
+              ],
+            ),
+          ),
+        );
+        if (selectedTier == null || !mounted) return;
       }
-      await File(p.join(dirPath, 'manifest.csv')).writeAsString(manifest);
-      _snack(l10n.backupDone(items.length));
+      final tierName = selectedTier ?? '';
+      final files = <FileMeasures>[];
+      final metadata = <Map<String, Object?>>[];
+      final exclusions = <String>[];
+      await _withLibraryProgress((progress) async {
+        for (var i = 0; i < recordings.length; i++) {
+          final r = recordings[i];
+          final (abs, grid, doc, sourceError) = sources[r.id]!;
+          progress.value = l10n.measuringProgress(i + 1, recordings.length);
+          var status = 'exported';
+          String? detail;
+          int? rowCount;
+          AnalysisSettings? settings;
+          String? editsPath;
+          try {
+            settings = settingsForRecording(
+              r,
+              widget.prefs.defaultAnalysisSettings ?? const AnalysisSettings(),
+            );
+            if (sourceError != null) throw sourceError;
+            if (doc == null) {
+              status = 'no_textgrid';
+              detail = l10n.batchNoTextGrid;
+            } else {
+              final tiers = doc.tiers
+                  .whereType<IntervalTierModel>()
+                  .where((t) => t.name == tierName)
+                  .toList();
+              if (tiers.length != 1) {
+                status = tiers.isEmpty ? 'missing_tier' : 'ambiguous_tier';
+                detail = tiers.isEmpty
+                    ? l10n.batchMissingTier(tierName)
+                    : l10n.batchAmbiguousTier(tierName);
+              } else if (!tiers.single.intervals.any(
+                (iv) => iv.text.isNotEmpty,
+              )) {
+                status = 'no_labelled_intervals';
+                detail = l10n.noLabelledIntervals;
+              } else {
+                final s = settings;
+                final candidateEditsPath = rust_core.pitchEditsPath(
+                  wavPath: abs,
+                );
+                if (await File(candidateEditsPath).exists()) {
+                  editsPath = candidateEditsPath;
+                }
+                final edits = await readPitchEdits(abs);
+                if (edits != null) {
+                  if (!pitchEditsMatch(
+                    edits,
+                    timeStepS: s.trackTimeStepS,
+                    floorHz: s.pitchFloorHz,
+                    ceilingHz: s.pitchCeilingHz,
+                  )) {
+                    throw StateError(l10n.analysisPitchBlocked);
+                  }
+                }
+                var f0 = await rust_core.f0Track(
+                  path: abs,
+                  timeStepS: s.trackTimeStepS,
+                  f0MinHz: s.pitchFloorHz,
+                  f0MaxHz: s.pitchCeilingHz,
+                );
+                List<bool>? edited;
+                if (edits != null) {
+                  final applied = applyPitchEdits(f0, edits);
+                  f0 = applied.track;
+                  edited = applied.edited;
+                }
+                final rows = measureIntervals(
+                  tiers.single,
+                  f0: f0,
+                  f0Edited: edited,
+                  intensity: await rust_core.intensityTrack(
+                    path: abs,
+                    timeStepS: s.trackTimeStepS,
+                    minPitchHz: s.intensityMinPitchHz,
+                  ),
+                  formants: await rust_core.formantTrack(
+                    path: abs,
+                    timeStepS: s.trackTimeStepS,
+                    maxFormants: s.maxFormants,
+                    ceilingHz: s.formantCeilingHz,
+                  ),
+                );
+                rowCount = rows.length;
+                files.add(
+                  FileMeasures(
+                    file: r.relativePath,
+                    tierName: tierName,
+                    rows: rows,
+                    pitchEdited: edited != null,
+                  ),
+                );
+              }
+            }
+          } catch (e) {
+            status = 'error';
+            detail = '$e';
+          }
+          if (detail != null) exclusions.add('${r.name}: $detail');
+          metadata.add(
+            await recordingMeasurementProvenance(
+              recording: r,
+              wavPath: abs,
+              settings: settings ?? const AnalysisSettings(),
+              textGridPath: grid,
+              pitchEditsPath: editsPath,
+              status: status,
+              detail: detail,
+              rows: rowCount,
+            ),
+          );
+          if (settings == null) {
+            metadata.last['analysis_settings'] = null;
+            metadata.last['formant_analysis'] = null;
+            metadata.last['stored_analysis_settings_json'] =
+                r.analysisSettingsJson;
+          }
+        }
+      });
+      if (!mounted) return;
+      final rowCount = files.fold<int>(0, (n, f) => n + f.rows.length);
+      final export = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(l10n.batchExportReportTitle),
+          content: SizedBox(
+            width: 440,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    l10n.batchExportReportBody(
+                      rowCount,
+                      files.length,
+                      exclusions.length,
+                    ),
+                  ),
+                  if (exclusions.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(exclusions.join('\n\n')),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(l10n.exportResults),
+            ),
+          ],
+        ),
+      );
+      if (export != true || !mounted) return;
+      final csv = batchMeasurementsCsv(files);
+      final report = measurementsMetadataJson(
+        softwareVersion: await loadAppVersion(),
+        tierName: tierName,
+        recordings: metadata,
+      );
+      if (!mounted) return;
+      if (_useShareSheet) {
+        final dir = await exportDirectory();
+        final csvFile = await File(
+          p.join(dir.path, 'library_measures.csv'),
+        ).writeAsString(csv);
+        final jsonFile = await File(
+          p.join(dir.path, 'library_measures.metadata.json'),
+        ).writeAsString(report);
+        if (!mounted) return;
+        await shareFilesFrom(context, [
+          XFile(csvFile.path, mimeType: 'text/csv'),
+          XFile(jsonFile.path, mimeType: 'application/json'),
+        ]);
+      } else {
+        final location = await getSaveLocation(
+          suggestedName: 'library_measures.csv',
+          acceptedTypeGroups: const [
+            XTypeGroup(label: 'CSV', extensions: ['csv']),
+          ],
+        );
+        if (location == null || !mounted) return;
+        await File(location.path).writeAsString(csv);
+        await File(
+          p.setExtension(location.path, '.metadata.json'),
+        ).writeAsString(report);
+        _snack(l10n.libraryMeasurementsExported(rowCount, files.length));
+      }
     } catch (e) {
-      _snack(l10n.exportFailed('$e'));
+      if (mounted) _snack(l10n.exportFailed('$e'));
+    } finally {
+      _libraryOperation = false;
+    }
+  }
+
+  Future<void> _backupLibrary() async {
+    if (_libraryOperation) return;
+    _libraryOperation = true;
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      if (!(await _analysisKey.currentState?.prepareLibraryExport() ?? true)) {
+        return;
+      }
+      final recordings = await widget.db.watchLibrary().first;
+      if (!mounted) return;
+      if (recordings.isEmpty) {
+        _snack(l10n.libraryEmpty);
+        return;
+      }
+      final archive = await _withLibraryProgress((progress) async {
+        progress.value = l10n.preparingLibraryBackup;
+        final rows = <(Recording, String, String?, String?)>[];
+        for (final r in recordings) {
+          final abs = await toAbsolutePath(r.relativePath);
+          final grid = await findSiblingTextGrid(abs);
+          final edits = rust_core.pitchEditsPath(wavPath: abs);
+          rows.add((
+            r,
+            abs,
+            grid?.path,
+            await File(edits).exists() ? edits : null,
+          ));
+        }
+        final dir = await exportDirectory();
+        final output = File(p.join(dir.path, 'openphon_library.zip'));
+        await writeLibraryArchive(
+          output: output,
+          items: planBackup(rows, sanitizeFileName),
+          defaultSettings:
+              widget.prefs.defaultAnalysisSettings ?? const AnalysisSettings(),
+          softwareVersion: await loadAppVersion(),
+        );
+        return output;
+      });
+      if (!mounted) return;
+      if (_useShareSheet) {
+        await shareFilesFrom(context, [
+          XFile(archive.path, mimeType: 'application/zip'),
+        ]);
+      } else {
+        final location = await getSaveLocation(
+          suggestedName: 'openphon_library.zip',
+          acceptedTypeGroups: const [
+            XTypeGroup(label: 'openphon backup', extensions: ['zip']),
+          ],
+        );
+        if (location == null || !mounted) return;
+        await archive.copy(location.path);
+        _snack(l10n.backupDone(recordings.length));
+      }
+    } catch (e) {
+      if (mounted) _snack(l10n.exportFailed('$e'));
+    } finally {
+      _libraryOperation = false;
+    }
+  }
+
+  Future<void> _restoreLibrary() async {
+    if (_libraryOperation) return;
+    _libraryOperation = true;
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      final selected = await openFiles(
+        acceptedTypeGroups: const [
+          XTypeGroup(
+            label: 'openphon backup',
+            extensions: ['zip'],
+            mimeTypes: ['application/zip'],
+            uniformTypeIdentifiers: ['public.zip-archive'],
+          ),
+        ],
+      );
+      if (selected.isEmpty || !mounted) return;
+      if (selected.length != 1) throw FormatException(l10n.selectOneBackup);
+      final count = await _withLibraryProgress((progress) async {
+        progress.value = l10n.validatingLibraryBackup;
+        return withLocalDocument(selected.single, (path) async {
+          final validated = await validateLibraryArchive(
+            input: File(path),
+            temporaryDirectory: File(path).parent,
+            probeWav: (wav) async {
+              final info = await rust_core.wavInfo(path: wav);
+              return WavProbe(
+                sampleRate: info.sampleRate,
+                channels: info.channels,
+                durationS: info.durationS,
+              );
+            },
+            validateTextGrid: (path) async {
+              await rust_core.readTextGrid(path: path);
+            },
+            validatePitchEdits: (path) async {
+              rust_core.parsePitchEdits(text: await File(path).readAsString());
+            },
+          );
+          try {
+            progress.value = l10n.restoringLibraryBackup;
+            return await restoreLibraryArchive(
+              archive: validated,
+              database: widget.db,
+              libraryDirectory: await libraryRoot(),
+            );
+          } finally {
+            await validated.dispose();
+          }
+        });
+      });
+      if (mounted) {
+        _refreshMetadata();
+        _snack(l10n.restoreDone(count));
+      }
+    } catch (e) {
+      if (mounted) _snack(l10n.restoreFailed('$e'));
+    } finally {
+      _libraryOperation = false;
     }
   }
 
@@ -593,6 +826,7 @@ class _HomePageState extends State<HomePage> {
                 onSelected: (v) {
                   if (v == 'measure_all') _exportLibraryMeasurements();
                   if (v == 'backup') _backupLibrary();
+                  if (v == 'restore') _restoreLibrary();
                 },
                 itemBuilder: (context) => [
                   PopupMenuItem(
@@ -605,6 +839,12 @@ class _HomePageState extends State<HomePage> {
                     value: 'backup',
                     child: Text(
                       AppLocalizations.of(context)!.backupLibraryMenu,
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'restore',
+                    child: Text(
+                      AppLocalizations.of(context)!.restoreLibraryMenu,
                     ),
                   ),
                 ],

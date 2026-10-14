@@ -11,6 +11,7 @@ import 'package:flutter/services.dart'
 import '../../../l10n/app_localizations.dart';
 import '../../analysis/analysis_controller.dart';
 import '../../analysis/analysis_settings.dart';
+import '../../analysis/library_measurements.dart';
 import '../../analysis/measurements.dart';
 import '../../analysis/view_prefs.dart';
 import '../../analysis/viewport_math.dart';
@@ -19,6 +20,7 @@ import '../../audio/recorder_service.dart' show sanitizeFileName;
 import '../../data/app_prefs.dart';
 import '../../data/database.dart';
 import '../../data/file_exchange.dart';
+import '../../rust/api/core.dart' as rust;
 import 'overlay_painter.dart';
 import 'pitch_edit_bar.dart';
 import 'readout_panel.dart';
@@ -76,9 +78,52 @@ class AnalysisViewState extends State<AnalysisView> {
         ..open();
 
   /// Keep the view and its edits until the user saves or explicitly discards.
-  Future<bool> confirmLeave() async {
-    if (_controller.annotation?.dirty != true) return true;
+  Future<bool> prepareLibraryExport() async {
+    final c = _controller;
     final l10n = AppLocalizations.of(context)!;
+    if (c.settingsReadError != null) {
+      _snack(l10n.analysisSettingsReadFailed('${c.settingsReadError}'));
+      return false;
+    }
+    if (c.annotation?.dirty == true) {
+      final error = await c.saveAnnotation();
+      if (!mounted) return false;
+      if (error != null || c.annotation?.dirty == true) {
+        _snack(
+          l10n.saveFailed(error ?? 'Annotations changed during the save.'),
+        );
+        return false;
+      }
+      widget.onAnnotationSaved?.call();
+    }
+    await c.pitchEditsSaved;
+    await c.settingsSaved;
+    if (!mounted) return false;
+    final error = c.pitchEditsError ?? c.settingsSaveError;
+    if (error != null) {
+      _snack(l10n.saveFailed('$error'));
+      return false;
+    }
+    return true;
+  }
+
+  /// Keep the view and its edits until the user saves or explicitly discards.
+  Future<bool> confirmLeave() async {
+    final l10n = AppLocalizations.of(context)!;
+    await _controller.pitchEditsSaved;
+    await _controller.settingsSaved;
+    if (!mounted) return false;
+    if (_controller.pitchEditsError != null) {
+      _snack(l10n.pitchEditsSaveFailed('${_controller.pitchEditsError}'));
+      return false;
+    }
+    if (_controller.settingsSaveError != null) {
+      _snack(
+        l10n.analysisSettingsSaveFailed('${_controller.settingsSaveError}'),
+      );
+      return false;
+    }
+    if (_controller.annotation?.dirty != true) return true;
     final choice = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -246,7 +291,20 @@ class AnalysisViewState extends State<AnalysisView> {
   /// CLI's `measure`) for the active tier, or the first interval tier when
   /// the active one is a point tier.
   Future<void> _exportMeasurements() async {
+    try {
+      await _exportMeasurementsInner();
+    } catch (e) {
+      if (mounted) _snack(AppLocalizations.of(context)!.exportFailed('$e'));
+    }
+  }
+
+  Future<void> _exportMeasurementsInner() async {
     final l10n = AppLocalizations.of(context)!;
+    final recording = widget.recording;
+    if (!_controller.measurementsReady) {
+      _snack(l10n.analysisIncomplete);
+      return;
+    }
     final doc = _controller.annotation?.doc;
     if (doc == null) return;
     IntervalTierModel? tier;
@@ -272,7 +330,47 @@ class AnalysisViewState extends State<AnalysisView> {
       _snack(l10n.noLabelledIntervals);
       return;
     }
-    final stem = sanitizeFileName(widget.recording.name);
+    // Capture the exact annotation and corrections used above before yielding.
+    // The saved TextGrid can differ from a document still being edited.
+    final settings = _controller.settings;
+    final corrections = _controller.pitchEditor?.toData();
+    final annotationSnapshot = {
+      'tier': tier.name,
+      'intervals': [
+        for (final iv in tier.intervals)
+          {'tmin_s': iv.xmin, 'tmax_s': iv.xmax, 'label': iv.text},
+      ],
+    };
+    final wavPath = _controller.absolutePath;
+    if (wavPath == null) {
+      throw StateError('The source recording is unavailable.');
+    }
+    final provenance = await recordingMeasurementProvenance(
+      recording: recording,
+      wavPath: wavPath,
+      settings: settings,
+      status: 'measured',
+      rows: rows.length,
+    );
+    provenance['settings_origin'] = 'active_recording';
+    provenance['annotation_snapshot'] = annotationSnapshot;
+    if (corrections != null && corrections.timesS.isNotEmpty) {
+      provenance['pitch_corrections'] = {
+        'time_step_s': corrections.timeStepS,
+        'floor_hz': corrections.f0MinHz,
+        'ceiling_hz': corrections.f0MaxHz,
+        'time_s': corrections.timesS.toList(),
+        'f0_hz': corrections.f0Hz.toList(),
+      };
+    }
+    provenance['core_version'] = rust.coreVersion();
+    final metadata = measurementsMetadataJson(
+      softwareVersion: await loadAppVersion(),
+      tierName: tier.name,
+      recordings: [provenance],
+    );
+    if (!mounted) return;
+    final stem = sanitizeFileName(recording.name);
     if (_useShareSheet) {
       try {
         final dir = await exportDirectory();
@@ -280,7 +378,13 @@ class AnalysisViewState extends State<AnalysisView> {
         await File(path).writeAsString(
           measurementsCsv(tier.name, rows, editedColumn: edited != null),
         );
-        await _shareFile(path, 'text/csv');
+        final metadataPath = '${dir.path}/${stem}_measures.metadata.json';
+        await File(metadataPath).writeAsString(metadata);
+        if (!mounted) return;
+        await shareFilesFrom(context, [
+          XFile(path, mimeType: 'text/csv'),
+          XFile(metadataPath, mimeType: 'application/json'),
+        ]);
       } catch (e) {
         _snack(l10n.exportFailed('$e'));
       }
@@ -296,6 +400,7 @@ class AnalysisViewState extends State<AnalysisView> {
       await File(location.path).writeAsString(
         measurementsCsv(tier.name, rows, editedColumn: edited != null),
       );
+      await File('${location.path}.metadata.json').writeAsString(metadata);
       _snack(l10n.measurementsExported(rows.length));
     } catch (e) {
       _snack(l10n.exportFailed('$e'));
@@ -338,7 +443,7 @@ class AnalysisViewState extends State<AnalysisView> {
   /// included) once it has loaded.
   Future<void> _voiceReport() async {
     final sound = _controller.sound;
-    if (sound == null) return;
+    if (sound == null || !_controller.pitchReady) return;
     final sel = _controller.selection;
     final t0 = sel?.t0 ?? 0.0;
     final t1 = sel?.t1 ?? _controller.durationS;
@@ -465,6 +570,45 @@ class AnalysisViewState extends State<AnalysisView> {
               TierView(controller: _controller),
               if (_controller.tracksLoading)
                 const LinearProgressIndicator(minHeight: 2),
+              if (_controller.trackErrors.isNotEmpty)
+                _analysisNotice(
+                  AppLocalizations.of(context)!.analysisFailed(
+                    _controller.trackErrors.entries
+                        .map((e) => '${e.key.name}: ${e.value}')
+                        .join('; '),
+                  ),
+                  _controller.loadTracks,
+                ),
+              if (_controller.settingsSaveError != null)
+                _analysisNotice(
+                  AppLocalizations.of(context)!.analysisSettingsSaveFailed(
+                    '${_controller.settingsSaveError}',
+                  ),
+                  _controller.retrySettingsSave,
+                ),
+              if (_controller.settingsReadError != null)
+                _analysisNotice(
+                  AppLocalizations.of(context)!.analysisSettingsReadFailed(
+                    '${_controller.settingsReadError}',
+                  ),
+                  _openSettings,
+                  action: AppLocalizations.of(context)!.analysisSettingsTooltip,
+                ),
+              if (_controller.pitchEditsError != null)
+                _analysisNotice(
+                  AppLocalizations.of(
+                    context,
+                  )!.pitchEditsSaveFailed('${_controller.pitchEditsError}'),
+                  _controller.retryPitchEditsSave,
+                ),
+              if ((_controller.pitchEditsMismatch ||
+                      _controller.pitchEditsUnreadable != null) &&
+                  !_controller.pitchEditMode)
+                _analysisNotice(
+                  AppLocalizations.of(context)!.analysisPitchBlocked,
+                  _controller.togglePitchEditMode,
+                  action: AppLocalizations.of(context)!.editPitchTooltip,
+                ),
               const Divider(height: 1),
               ReadoutPanel(controller: _controller),
               const Divider(height: 1),
@@ -488,6 +632,25 @@ class AnalysisViewState extends State<AnalysisView> {
       },
     );
   }
+
+  Widget _analysisNotice(
+    String message,
+    VoidCallback retry, {
+    String? action,
+  }) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(message, style: Theme.of(context).textTheme.bodySmall),
+        ),
+        TextButton(
+          onPressed: retry,
+          child: Text(action ?? AppLocalizations.of(context)!.retry),
+        ),
+      ],
+    ),
+  );
 }
 
 /// Waveform strip + spectrogram sharing one time axis, one gesture
