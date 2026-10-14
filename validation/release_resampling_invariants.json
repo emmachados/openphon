@@ -1,0 +1,1832 @@
+{
+  "generated_at_utc": "2026-10-14T09:12:44.674401+00:00",
+  "purpose": "Exact constant preservation, silent-gap rejection and quiet-signal numerical invariance",
+  "scope": "Fresh synthetic inputs only; no public or private speech and no formant-accuracy claim",
+  "source_sha256": {
+    "core/src/formant.rs": "fe1d500f743cb6bf0be5308b1cbbcbe5c35193705077d11290e553a0cfce05c9",
+    "core/src/intensity.rs": "ff0e7ab9d5992cf3947e7697eee36813ec17b259baa9c34c62c2c974e967511d",
+    "core/src/lib.rs": "16560bc4cc408f424bea29f428d406439c5cbcfbde940affe3d7987d6a07685f",
+    "core/src/pitch.rs": "053dc590515775077262bfcca3ec15d12bc71d4dd1501294fe0c02ac95cdbbf5",
+    "core/src/pitch_edits.rs": "5a3cc6738c1711d2f0a202642faaa1cc4acbb1f90c19b3b3aa983c8959666096",
+    "core/src/quality.rs": "3a4e7a8115aaf7c8847b3a06b297751f3980ce87a42fb40e70041041d40d4d1a",
+    "core/src/spectral.rs": "ac140b7757d19f01477b5045c3c052c759d22292c51a6e00abfe81015fdccf5f",
+    "core/src/spectrogram.rs": "fafc83bb0c5b36dc243f2ef01be054c8af7dcdc4ac57337b0240146fbc59d4e0",
+    "core/src/textgrid.rs": "45afaf8910b83562b1171bf10af0b45370ab5269a084bed3aa1da1d77bf23f0b",
+    "core/src/voice_quality.rs": "4a4d81e2cbd88036495cd78b15462c9912c1ab1fcc8ea7cb617113bf446967ff",
+    "core/src/wav.rs": "b26f43eb389d2a61d2a878a7c768db71ab9165700a7d4a948dd8e5654bbdacff",
+    "core/src/waveform.rs": "ababc7e3a4312af22784530324bcccd146c03b10d9bd7cad76003dbd199b7ac3",
+    "core/Cargo.toml": "2d4e3cb80b885de22b99f1e2284b6c1cf384717b17f419d92a674e587126288d",
+    "core/Cargo.lock": "2696a15ce0e2c953d1490df32d15623336c9d178182ced453d9dd933d7171bfb",
+    "validation/resampling_check.py": "21bf108dd47a391dfe49bfdb99665a81ad30ef6a0c6f0deea9e74ca5d7dfa8c4",
+    "validation/formant_transitions.py": "8d3932d135711b917d050fd3138d071182d390aa4e292db500fd0453d00067ee",
+    "validation/synthesize.py": "307efc4dd6e0f77d94978de01988a7eac266f00ec55c9b116e7d8aaed56ad739"
+  },
+  "driver_sha256": "3549aabe3f5e464904b9dc8e22a7531219a69ab34aafc11aa9ca5dea8328ea02",
+  "native_binary_sha256": "ca3b6511a4484f46e71c9dac4e6c82971a1ec2f86ac49618022015173f7c4425",
+  "core_library_sha256": "47022817a9c0e47867abe36a303b2ce6f9846666414819abe0e7b83849b1f230",
+  "environment": {
+    "python": "3.12.13",
+    "numpy": "2.5.3",
+    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)"
+  },
+  "design": {
+    "input_rates_hz": [
+      8000,
+      11000,
+      16000,
+      44100,
+      44101,
+      48000,
+      96000,
+      192000
+    ],
+    "output_rate_hz": 11000,
+    "rate_paths": "11000: identity; 44101: generic coefficient-table fallback; other rates: polyphase",
+    "constant_levels": [
+      0.0,
+      0.1,
+      0.25,
+      -0.2,
+      1e-12
+    ],
+    "direct_guard_s": 0.02,
+    "direct_duration_s": 0.4,
+    "dropout_guard_s": 0.06,
+    "active_tones_hz": [
+      1000,
+      3000
+    ],
+    "second_tone_amplitude": 0.2,
+    "quiet_scale": 1e-12,
+    "relative_scale_tolerance": 1e-12,
+    "track_numerical_tolerance_hz": 1e-06,
+    "constant_policy": "Exact equality in complete-kernel interiors; no amplitude threshold",
+    "boundary_scope": "Zero-padding boundary equivalence is checked by core unit tests; excluded here",
+    "quiet_control": "Same float64 samples attenuated by 1e-12 after PCM16 fixture construction",
+    "raw_max_bandwidth_hz": null,
+    "default_max_bandwidth_hz": 400.0
+  },
+  "resampling": [
+    {
+      "input_rate_hz": 8000,
+      "output_rate_hz": 11000,
+      "n_input_samples": 3200,
+      "n_output_samples": 4400,
+      "constants": [
+        {
+          "input_level": 0.0,
+          "input_sha256": "c65206769723a13afe80c0d925531639ceef9c2eb97eee3b1b542739ec40597f",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 0.1,
+          "input_sha256": "e062c2482534382e0e20a548689eeb1269438efb181435bad96be99d98808fee",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 0.25,
+          "input_sha256": "dcedfa314fa2f4e5267c7c4d098c64cec5e0d6379eecb30ead8287ef2c480668",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": -0.2,
+          "input_sha256": "f3415e7e9e172c1d7da081b45bea7a9f7d2cae4615cbec5e62e808db5eb0a5e8",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 1e-12,
+          "input_sha256": "3feec8fbaaad30869a302441ab7a4734f9d730701baa8e8b8801bfa113c13029",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        }
+      ],
+      "scaled_signal": {
+        "input_sha256": "db5be42b4a604647f0ec0e66164350faf6ec6b62a4dde9811b828ff394d460d8",
+        "quiet_input_sha256": "2d9ffa68108b2bc85da85934b69ece535e39544c2d930eef6fb41ce7ca3c13b8",
+        "n_samples": 3961,
+        "amplitude_scale": 1e-12,
+        "quiet_rms": 7.210290517042226e-13,
+        "quiet_peak_to_peak": 2.17446346820239e-12,
+        "maximum_normalized_abs_difference": 7.771561172376096e-16,
+        "relative_normalized_abs_difference": 7.05511529369892e-16,
+        "relative_tolerance": 1e-12,
+        "passed": true
+      }
+    },
+    {
+      "input_rate_hz": 11000,
+      "output_rate_hz": 11000,
+      "n_input_samples": 4400,
+      "n_output_samples": 4400,
+      "constants": [
+        {
+          "input_level": 0.0,
+          "input_sha256": "147547ac118956a297d7c53d014ad62ae50d1f047c5eca6af8af9b9ab4ca0417",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 0.1,
+          "input_sha256": "bd62ae1da7fe1c5de036e4dc0eebb4d2f4302000b9486a831558edf38bae89d0",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 0.25,
+          "input_sha256": "997fb8ac5d93aeb2acb78b06b53b2629070468a860e8a812766f82e27885f986",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": -0.2,
+          "input_sha256": "ed056a50f5e2496e97b59b68582d1f64ae388c9a297820c2f277a4e232081206",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 1e-12,
+          "input_sha256": "cc8eb3b990c6956780e1d0a573896d96a40e9d0dd4e2a62d1eb21bdda8aad0c6",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        }
+      ],
+      "scaled_signal": {
+        "input_sha256": "2168b2ef0745a9856b6e0d08c4c1e7fde5d5c77acb1b6334c47e6f43f57274f4",
+        "quiet_input_sha256": "47f17eae16e3a2afe6a19c5de48ef598e81cbf7de2ec08421bcaec82edfab8a1",
+        "n_samples": 3961,
+        "amplitude_scale": 1e-12,
+        "quiet_rms": 7.210262259309175e-13,
+        "quiet_peak_to_peak": 2.174435034559055e-12,
+        "maximum_normalized_abs_difference": 1.1102230246251565e-16,
+        "relative_normalized_abs_difference": 1.0078912330041878e-16,
+        "relative_tolerance": 1e-12,
+        "passed": true
+      }
+    },
+    {
+      "input_rate_hz": 16000,
+      "output_rate_hz": 11000,
+      "n_input_samples": 6400,
+      "n_output_samples": 4400,
+      "constants": [
+        {
+          "input_level": 0.0,
+          "input_sha256": "16fa66a7dc98d93f2a4c5d20baf5177f59c4c37fc62face65690c11c15fe6ff9",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 0.1,
+          "input_sha256": "2e11d40c8b05746efeb484f6a4c19eb015d758e8ea6e305dcf2c31367e4a31a5",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 0.25,
+          "input_sha256": "654652aa3d5f483f2f52b05e629721508acf6e3fc036159aa2f32bc623a31b36",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": -0.2,
+          "input_sha256": "7bd80dc00267d00dc0b4d303823d8fd5ad63235d48e090132c8d0d80b9cfe0b8",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 1e-12,
+          "input_sha256": "fc7a0f9e54bbd5e3444c5ce428a9be6dfeaf46bf0f773fdec66340ec84d6c350",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        }
+      ],
+      "scaled_signal": {
+        "input_sha256": "679508b83e69fea3e3b147682346a9d7cf45c4e49b96281514d2f0e6b6f2fe9b",
+        "quiet_input_sha256": "675cce43bf40e2f1176c7f596bcecc675c518f05b7625a05024eb8f29153e618",
+        "n_samples": 3961,
+        "amplitude_scale": 1e-12,
+        "quiet_rms": 7.210249684759528e-13,
+        "quiet_peak_to_peak": 2.174427542749033e-12,
+        "maximum_normalized_abs_difference": 1.1102230246251565e-15,
+        "relative_normalized_abs_difference": 1.007895726505886e-15,
+        "relative_tolerance": 1e-12,
+        "passed": true
+      }
+    },
+    {
+      "input_rate_hz": 44100,
+      "output_rate_hz": 11000,
+      "n_input_samples": 17640,
+      "n_output_samples": 4400,
+      "constants": [
+        {
+          "input_level": 0.0,
+          "input_sha256": "06b6886d04524aee9e3fbfb25b6d1e8edae6f842a7bdc6039913b377c1fbd230",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 0.1,
+          "input_sha256": "af3868c55c721aeb9c185b5713937771e3edf707a96bad29f53215a51cb3d8fe",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 0.25,
+          "input_sha256": "9cf8cf4153fb873f4c21394b13c05dedc2dc31bc6d5121fe81bca33eaa496017",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": -0.2,
+          "input_sha256": "b50d0f185ac11b7915c366981b0d643a1027ca27163cc85d53d25b1251c629ca",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 1e-12,
+          "input_sha256": "7cb78f0bf1a91a85bd484f85f4217f6fc08b242e41630df97bde7f0d95687c4c",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        }
+      ],
+      "scaled_signal": {
+        "input_sha256": "9b80761251352843246a34d14e9daf3a941778d9ce64e01b6668e0b88a8da680",
+        "quiet_input_sha256": "2c5a1d09144e8e52a4ba3fa0950ca4cfaf0e9f01d7e91cd3a28533235f43c640",
+        "n_samples": 3961,
+        "amplitude_scale": 1e-12,
+        "quiet_rms": 7.21024867538518e-13,
+        "quiet_peak_to_peak": 2.1744269534548987e-12,
+        "maximum_normalized_abs_difference": 1.5543122344752192e-15,
+        "relative_normalized_abs_difference": 1.411054374668399e-15,
+        "relative_tolerance": 1e-12,
+        "passed": true
+      }
+    },
+    {
+      "input_rate_hz": 44101,
+      "output_rate_hz": 11000,
+      "n_input_samples": 17640,
+      "n_output_samples": 4399,
+      "constants": [
+        {
+          "input_level": 0.0,
+          "input_sha256": "06b6886d04524aee9e3fbfb25b6d1e8edae6f842a7bdc6039913b377c1fbd230",
+          "n_samples": 3960,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 0.1,
+          "input_sha256": "af3868c55c721aeb9c185b5713937771e3edf707a96bad29f53215a51cb3d8fe",
+          "n_samples": 3960,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 0.25,
+          "input_sha256": "9cf8cf4153fb873f4c21394b13c05dedc2dc31bc6d5121fe81bca33eaa496017",
+          "n_samples": 3960,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": -0.2,
+          "input_sha256": "b50d0f185ac11b7915c366981b0d643a1027ca27163cc85d53d25b1251c629ca",
+          "n_samples": 3960,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 1e-12,
+          "input_sha256": "7cb78f0bf1a91a85bd484f85f4217f6fc08b242e41630df97bde7f0d95687c4c",
+          "n_samples": 3960,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        }
+      ],
+      "scaled_signal": {
+        "input_sha256": "94b0e1cf6fc76fbe74c9fb71afaa17f359b4f29fc0303ad5f0400862077953a3",
+        "quiet_input_sha256": "279ba8921074253e7a0b044cdcac9c53cb8e1a5a2cbf2a7c8f15204ca3511808",
+        "n_samples": 3960,
+        "amplitude_scale": 1e-12,
+        "quiet_rms": 7.211088963629215e-13,
+        "quiet_peak_to_peak": 2.1744269506001215e-12,
+        "maximum_normalized_abs_difference": 4.440892098500626e-16,
+        "relative_normalized_abs_difference": 4.031583934420113e-16,
+        "relative_tolerance": 1e-12,
+        "passed": true
+      }
+    },
+    {
+      "input_rate_hz": 48000,
+      "output_rate_hz": 11000,
+      "n_input_samples": 19200,
+      "n_output_samples": 4400,
+      "constants": [
+        {
+          "input_level": 0.0,
+          "input_sha256": "0c5cc90b079d0d9c1ded1376357d23a9782a704a83e01731f50ccd162e246492",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 0.1,
+          "input_sha256": "58d31229204349550c280adc59600bc5976fc098ef33a1d35bda72eac1c3e2f3",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 0.25,
+          "input_sha256": "aaa3fe82a8ba1b0598084e0c59e7f3567d5e0f608f4e9a658cfc0ec324d0e5fb",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": -0.2,
+          "input_sha256": "5028c161c4e7e28a676e788e30c91665c0cf0207db7cace1cf9c9a00d390f091",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 1e-12,
+          "input_sha256": "ef86bd23583b51dcd29c2c0785f550ebf4403584837d1ae4e817b0886d930769",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        }
+      ],
+      "scaled_signal": {
+        "input_sha256": "b4fff06a958334b08081231576ca9e456d3632b5efe2425fd3661295f96f0c8d",
+        "quiet_input_sha256": "850b8847e766eb046165b5ce615db6592e20c79817c23fed0d1c99bd36959dd2",
+        "n_samples": 3961,
+        "amplitude_scale": 1e-12,
+        "quiet_rms": 7.210248193332203e-13,
+        "quiet_peak_to_peak": 2.1744266295857642e-12,
+        "maximum_normalized_abs_difference": 1.887379141862766e-15,
+        "relative_normalized_abs_difference": 1.7134235003829337e-15,
+        "relative_tolerance": 1e-12,
+        "passed": true
+      }
+    },
+    {
+      "input_rate_hz": 96000,
+      "output_rate_hz": 11000,
+      "n_input_samples": 38400,
+      "n_output_samples": 4400,
+      "constants": [
+        {
+          "input_level": 0.0,
+          "input_sha256": "7818f5542a0404157573be6cffc0e0c8e68ce3c0f5d17d07ccdd9313fb700baf",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 0.1,
+          "input_sha256": "ed01bd7f77f6890de658521163a5eb12ae36c7cef9f748c4b57fea2cdd79e870",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 0.25,
+          "input_sha256": "210fa5bf187ebfddd44fd6e9df58a6899d676ac0b28fd24b4e8b80e773f7655d",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": -0.2,
+          "input_sha256": "4f2d199f58a06dcefc23402900b50033955946e3b7321f64a3aebc233cf70cba",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 1e-12,
+          "input_sha256": "6e724316b52477ef7b38d33f33614d690424cdf4c210adab14cd1a0bf16d3022",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        }
+      ],
+      "scaled_signal": {
+        "input_sha256": "88c74fa023102ba3923f2e0b0551451d855342dd096e3e6284f4772ccee4116e",
+        "quiet_input_sha256": "368b7b00565326c112f827ecf895cdc1c4a4d664628296d7da4bddef610c4b7b",
+        "n_samples": 3961,
+        "amplitude_scale": 1e-12,
+        "quiet_rms": 7.210248193460098e-13,
+        "quiet_peak_to_peak": 2.1744266306601713e-12,
+        "maximum_normalized_abs_difference": 2.3314683517128287e-15,
+        "relative_normalized_abs_difference": 2.1165819684648047e-15,
+        "relative_tolerance": 1e-12,
+        "passed": true
+      }
+    },
+    {
+      "input_rate_hz": 192000,
+      "output_rate_hz": 11000,
+      "n_input_samples": 76800,
+      "n_output_samples": 4400,
+      "constants": [
+        {
+          "input_level": 0.0,
+          "input_sha256": "34c69899504b36f13e8b22120cf0fd894e61fcd6b046fb8535b79cc491fa3b3f",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 0.1,
+          "input_sha256": "79ab7c7011919b37110c4e7622707ebb3d5fbc013d934480be2ec9e17cc7806d",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 0.25,
+          "input_sha256": "ae072101339872e06fce3ab71aca2d4fc2c46802391f08e2ef78da73fc7fb906",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": -0.2,
+          "input_sha256": "e7b915dec87b2f86f16ce2a8491383253a7b2a3691e294007596137270c65238",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        },
+        {
+          "input_level": 1e-12,
+          "input_sha256": "726ec9a4671fdc5771e0b102d08eed6c21745a6058c5f9a55193f748dee84163",
+          "n_samples": 3961,
+          "n_samples_different": 0,
+          "maximum_abs_difference": 0.0,
+          "peak_to_peak": 0.0,
+          "passed": true
+        }
+      ],
+      "scaled_signal": {
+        "input_sha256": "c81edc1694b2094e6cffc9daeb28011e988dd89f4ac74f0349fc56b7979a4b21",
+        "quiet_input_sha256": "c050481dcf0b744e11d4c556e07c8883ac2509d70c78b769e3d06f07b8fd2773",
+        "n_samples": 3961,
+        "amplitude_scale": 1e-12,
+        "quiet_rms": 7.210248027615122e-13,
+        "quiet_peak_to_peak": 2.17442649393164e-12,
+        "maximum_normalized_abs_difference": 4.218847493575595e-15,
+        "relative_normalized_abs_difference": 3.830005790267943e-15,
+        "relative_tolerance": 1e-12,
+        "passed": true
+      }
+    }
+  ],
+  "silent_regions": [
+    {
+      "stem": "pulse_8000",
+      "input_rate_hz": 8000,
+      "construction": "0.25 over [0.1,0.2) seconds, otherwise exactly zero; duration 1.6 s",
+      "input_sha256": "d6527263b1245e36ccca5d3587276b26f212fd6b6310ea393af04d0b5da475fc",
+      "modes": {
+        "raw": {
+          "interval_s": [
+            0.76,
+            0.84
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        },
+        "default": {
+          "interval_s": [
+            0.76,
+            0.84
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        }
+      }
+    },
+    {
+      "stem": "pulse_11000",
+      "input_rate_hz": 11000,
+      "construction": "0.25 over [0.1,0.2) seconds, otherwise exactly zero; duration 1.6 s",
+      "input_sha256": "b913222e297ce25cbf3330e1fb9065e73d55359c7588fd74921d48b0b6b1a197",
+      "modes": {
+        "raw": {
+          "interval_s": [
+            0.76,
+            0.84
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        },
+        "default": {
+          "interval_s": [
+            0.76,
+            0.84
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        }
+      }
+    },
+    {
+      "stem": "pulse_16000",
+      "input_rate_hz": 16000,
+      "construction": "0.25 over [0.1,0.2) seconds, otherwise exactly zero; duration 1.6 s",
+      "input_sha256": "6ed07cec44c3455fd59edfc894a819c8a807fdca42b97932d93644326c0ae942",
+      "modes": {
+        "raw": {
+          "interval_s": [
+            0.76,
+            0.84
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        },
+        "default": {
+          "interval_s": [
+            0.76,
+            0.84
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        }
+      }
+    },
+    {
+      "stem": "pulse_44100",
+      "input_rate_hz": 44100,
+      "construction": "0.25 over [0.1,0.2) seconds, otherwise exactly zero; duration 1.6 s",
+      "input_sha256": "74ad3c70b5bf8bcff28a7c3fb847458ef63a63c382cb60271cfc55e654cccbbc",
+      "modes": {
+        "raw": {
+          "interval_s": [
+            0.76,
+            0.84
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        },
+        "default": {
+          "interval_s": [
+            0.76,
+            0.84
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        }
+      }
+    },
+    {
+      "stem": "pulse_44101",
+      "input_rate_hz": 44101,
+      "construction": "0.25 over [0.1,0.2) seconds, otherwise exactly zero; duration 1.6 s",
+      "input_sha256": "bab7a675c45bb527e7848bcd23d2c84929a5cc0928b894a886b72d232d3ad7aa",
+      "modes": {
+        "raw": {
+          "interval_s": [
+            0.76,
+            0.84
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        },
+        "default": {
+          "interval_s": [
+            0.76,
+            0.84
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        }
+      }
+    },
+    {
+      "stem": "pulse_48000",
+      "input_rate_hz": 48000,
+      "construction": "0.25 over [0.1,0.2) seconds, otherwise exactly zero; duration 1.6 s",
+      "input_sha256": "b92639c431e20b5d4dd139ce6eab33dd55a69bb7ab7733e39b85b92357fe5c52",
+      "modes": {
+        "raw": {
+          "interval_s": [
+            0.76,
+            0.84
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        },
+        "default": {
+          "interval_s": [
+            0.76,
+            0.84
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        }
+      }
+    },
+    {
+      "stem": "pulse_96000",
+      "input_rate_hz": 96000,
+      "construction": "0.25 over [0.1,0.2) seconds, otherwise exactly zero; duration 1.6 s",
+      "input_sha256": "4f922ced88f5a5fa327bac1855109185c7f4bccd57eb8975c2aa40491a441bb0",
+      "modes": {
+        "raw": {
+          "interval_s": [
+            0.76,
+            0.84
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        },
+        "default": {
+          "interval_s": [
+            0.76,
+            0.84
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        }
+      }
+    },
+    {
+      "stem": "pulse_192000",
+      "input_rate_hz": 192000,
+      "construction": "0.25 over [0.1,0.2) seconds, otherwise exactly zero; duration 1.6 s",
+      "input_sha256": "4c200751b2dd4bb7a53822ffe0c666b0baa4deb0587d3b8e74860d419564b278",
+      "modes": {
+        "raw": {
+          "interval_s": [
+            0.76,
+            0.84
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        },
+        "default": {
+          "interval_s": [
+            0.76,
+            0.84
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        }
+      }
+    },
+    {
+      "stem": "transition_dropout_ab_f0100",
+      "input_rate_hz": 44100,
+      "construction": "Existing deterministic dropout fixture after PCM16 quantization",
+      "fixture": {
+        "stem": "transition_dropout_ab_f0100",
+        "condition": "dropout",
+        "direction": "ab",
+        "f0_hz": 100,
+        "sample_rate_hz": 44100,
+        "duration_s": 1.6,
+        "acceptance_group": "diagnostic",
+        "bandwidths_hz": [
+          60.0,
+          90.0,
+          120.0,
+          150.0,
+          200.0
+        ],
+        "trajectory": {
+          "interpolation": "linear",
+          "times_s": [
+            0.0,
+            0.3,
+            1.3,
+            1.6
+          ],
+          "frequencies_hz": [
+            [
+              350.0,
+              2100.0,
+              2900.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              350.0,
+              2100.0,
+              2900.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              750.0,
+              1300.0,
+              2500.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              750.0,
+              1300.0,
+              2500.0,
+              3600.0,
+              4500.0
+            ]
+          ]
+        },
+        "trajectory_boundaries_s": [
+          0.3,
+          1.3
+        ],
+        "dropouts_s": [
+          [
+            0.7,
+            0.9
+          ]
+        ],
+        "guard_s": 0.06
+      },
+      "input_sha256": "c441f42200c33244503a758e07478e54556d8a1d02525f1a51a5aadaf60c8f11",
+      "modes": {
+        "raw": {
+          "interval_s": [
+            0.76,
+            0.8400000000000001
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        },
+        "default": {
+          "interval_s": [
+            0.76,
+            0.8400000000000001
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        }
+      }
+    },
+    {
+      "stem": "transition_dropout_ba_f0100",
+      "input_rate_hz": 44100,
+      "construction": "Existing deterministic dropout fixture after PCM16 quantization",
+      "fixture": {
+        "stem": "transition_dropout_ba_f0100",
+        "condition": "dropout",
+        "direction": "ba",
+        "f0_hz": 100,
+        "sample_rate_hz": 44100,
+        "duration_s": 1.6,
+        "acceptance_group": "diagnostic",
+        "bandwidths_hz": [
+          60.0,
+          90.0,
+          120.0,
+          150.0,
+          200.0
+        ],
+        "trajectory": {
+          "interpolation": "linear",
+          "times_s": [
+            0.0,
+            0.3,
+            1.3,
+            1.6
+          ],
+          "frequencies_hz": [
+            [
+              750.0,
+              1300.0,
+              2500.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              750.0,
+              1300.0,
+              2500.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              350.0,
+              2100.0,
+              2900.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              350.0,
+              2100.0,
+              2900.0,
+              3600.0,
+              4500.0
+            ]
+          ]
+        },
+        "trajectory_boundaries_s": [
+          0.3,
+          1.3
+        ],
+        "dropouts_s": [
+          [
+            0.7,
+            0.9
+          ]
+        ],
+        "guard_s": 0.06
+      },
+      "input_sha256": "e6cb4695d2917ea26e228fb4918087c706fb8cf3057a527816fabcb9f04f1b1d",
+      "modes": {
+        "raw": {
+          "interval_s": [
+            0.76,
+            0.8400000000000001
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        },
+        "default": {
+          "interval_s": [
+            0.76,
+            0.8400000000000001
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        }
+      }
+    },
+    {
+      "stem": "transition_dropout_ab_f0200",
+      "input_rate_hz": 44100,
+      "construction": "Existing deterministic dropout fixture after PCM16 quantization",
+      "fixture": {
+        "stem": "transition_dropout_ab_f0200",
+        "condition": "dropout",
+        "direction": "ab",
+        "f0_hz": 200,
+        "sample_rate_hz": 44100,
+        "duration_s": 1.6,
+        "acceptance_group": "diagnostic",
+        "bandwidths_hz": [
+          60.0,
+          90.0,
+          120.0,
+          150.0,
+          200.0
+        ],
+        "trajectory": {
+          "interpolation": "linear",
+          "times_s": [
+            0.0,
+            0.3,
+            1.3,
+            1.6
+          ],
+          "frequencies_hz": [
+            [
+              350.0,
+              2100.0,
+              2900.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              350.0,
+              2100.0,
+              2900.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              750.0,
+              1300.0,
+              2500.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              750.0,
+              1300.0,
+              2500.0,
+              3600.0,
+              4500.0
+            ]
+          ]
+        },
+        "trajectory_boundaries_s": [
+          0.3,
+          1.3
+        ],
+        "dropouts_s": [
+          [
+            0.7,
+            0.9
+          ]
+        ],
+        "guard_s": 0.06
+      },
+      "input_sha256": "57980119dbad955c4f340bb63a6a7f877df9b254db64846d315d7eb6cb5676c6",
+      "modes": {
+        "raw": {
+          "interval_s": [
+            0.76,
+            0.8400000000000001
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        },
+        "default": {
+          "interval_s": [
+            0.76,
+            0.8400000000000001
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        }
+      }
+    },
+    {
+      "stem": "transition_dropout_ba_f0200",
+      "input_rate_hz": 44100,
+      "construction": "Existing deterministic dropout fixture after PCM16 quantization",
+      "fixture": {
+        "stem": "transition_dropout_ba_f0200",
+        "condition": "dropout",
+        "direction": "ba",
+        "f0_hz": 200,
+        "sample_rate_hz": 44100,
+        "duration_s": 1.6,
+        "acceptance_group": "diagnostic",
+        "bandwidths_hz": [
+          60.0,
+          90.0,
+          120.0,
+          150.0,
+          200.0
+        ],
+        "trajectory": {
+          "interpolation": "linear",
+          "times_s": [
+            0.0,
+            0.3,
+            1.3,
+            1.6
+          ],
+          "frequencies_hz": [
+            [
+              750.0,
+              1300.0,
+              2500.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              750.0,
+              1300.0,
+              2500.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              350.0,
+              2100.0,
+              2900.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              350.0,
+              2100.0,
+              2900.0,
+              3600.0,
+              4500.0
+            ]
+          ]
+        },
+        "trajectory_boundaries_s": [
+          0.3,
+          1.3
+        ],
+        "dropouts_s": [
+          [
+            0.7,
+            0.9
+          ]
+        ],
+        "guard_s": 0.06
+      },
+      "input_sha256": "c5a58087d5f6f01f6838306f5d2695f371df9317accb1173b02188fc4155fb5f",
+      "modes": {
+        "raw": {
+          "interval_s": [
+            0.76,
+            0.8400000000000001
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        },
+        "default": {
+          "interval_s": [
+            0.76,
+            0.8400000000000001
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        }
+      }
+    },
+    {
+      "stem": "transition_dropout_ab_f0300",
+      "input_rate_hz": 44100,
+      "construction": "Existing deterministic dropout fixture after PCM16 quantization",
+      "fixture": {
+        "stem": "transition_dropout_ab_f0300",
+        "condition": "dropout",
+        "direction": "ab",
+        "f0_hz": 300,
+        "sample_rate_hz": 44100,
+        "duration_s": 1.6,
+        "acceptance_group": "diagnostic",
+        "bandwidths_hz": [
+          60.0,
+          90.0,
+          120.0,
+          150.0,
+          200.0
+        ],
+        "trajectory": {
+          "interpolation": "linear",
+          "times_s": [
+            0.0,
+            0.3,
+            1.3,
+            1.6
+          ],
+          "frequencies_hz": [
+            [
+              350.0,
+              2100.0,
+              2900.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              350.0,
+              2100.0,
+              2900.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              750.0,
+              1300.0,
+              2500.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              750.0,
+              1300.0,
+              2500.0,
+              3600.0,
+              4500.0
+            ]
+          ]
+        },
+        "trajectory_boundaries_s": [
+          0.3,
+          1.3
+        ],
+        "dropouts_s": [
+          [
+            0.7,
+            0.9
+          ]
+        ],
+        "guard_s": 0.06
+      },
+      "input_sha256": "7ace3870e74c9e7ec21a13a7c716e8298eadf0eb89018c530f983180660fe804",
+      "modes": {
+        "raw": {
+          "interval_s": [
+            0.76,
+            0.8400000000000001
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        },
+        "default": {
+          "interval_s": [
+            0.76,
+            0.8400000000000001
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        }
+      }
+    },
+    {
+      "stem": "transition_dropout_ba_f0300",
+      "input_rate_hz": 44100,
+      "construction": "Existing deterministic dropout fixture after PCM16 quantization",
+      "fixture": {
+        "stem": "transition_dropout_ba_f0300",
+        "condition": "dropout",
+        "direction": "ba",
+        "f0_hz": 300,
+        "sample_rate_hz": 44100,
+        "duration_s": 1.6,
+        "acceptance_group": "diagnostic",
+        "bandwidths_hz": [
+          60.0,
+          90.0,
+          120.0,
+          150.0,
+          200.0
+        ],
+        "trajectory": {
+          "interpolation": "linear",
+          "times_s": [
+            0.0,
+            0.3,
+            1.3,
+            1.6
+          ],
+          "frequencies_hz": [
+            [
+              750.0,
+              1300.0,
+              2500.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              750.0,
+              1300.0,
+              2500.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              350.0,
+              2100.0,
+              2900.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              350.0,
+              2100.0,
+              2900.0,
+              3600.0,
+              4500.0
+            ]
+          ]
+        },
+        "trajectory_boundaries_s": [
+          0.3,
+          1.3
+        ],
+        "dropouts_s": [
+          [
+            0.7,
+            0.9
+          ]
+        ],
+        "guard_s": 0.06
+      },
+      "input_sha256": "da49ed04b74eeb5194bdf26c7e089185ebd27e8437caaf67d9a4619e72118743",
+      "modes": {
+        "raw": {
+          "interval_s": [
+            0.76,
+            0.8400000000000001
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        },
+        "default": {
+          "interval_s": [
+            0.76,
+            0.8400000000000001
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        }
+      }
+    },
+    {
+      "stem": "transition_dropout_ab_f0400",
+      "input_rate_hz": 44100,
+      "construction": "Existing deterministic dropout fixture after PCM16 quantization",
+      "fixture": {
+        "stem": "transition_dropout_ab_f0400",
+        "condition": "dropout",
+        "direction": "ab",
+        "f0_hz": 400,
+        "sample_rate_hz": 44100,
+        "duration_s": 1.6,
+        "acceptance_group": "diagnostic",
+        "bandwidths_hz": [
+          60.0,
+          90.0,
+          120.0,
+          150.0,
+          200.0
+        ],
+        "trajectory": {
+          "interpolation": "linear",
+          "times_s": [
+            0.0,
+            0.3,
+            1.3,
+            1.6
+          ],
+          "frequencies_hz": [
+            [
+              350.0,
+              2100.0,
+              2900.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              350.0,
+              2100.0,
+              2900.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              750.0,
+              1300.0,
+              2500.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              750.0,
+              1300.0,
+              2500.0,
+              3600.0,
+              4500.0
+            ]
+          ]
+        },
+        "trajectory_boundaries_s": [
+          0.3,
+          1.3
+        ],
+        "dropouts_s": [
+          [
+            0.7,
+            0.9
+          ]
+        ],
+        "guard_s": 0.06
+      },
+      "input_sha256": "45a92a62472bdd0b1a2cd38680c3377559ed9d496bef55dd9f82b6c6b2dbac0c",
+      "modes": {
+        "raw": {
+          "interval_s": [
+            0.76,
+            0.8400000000000001
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        },
+        "default": {
+          "interval_s": [
+            0.76,
+            0.8400000000000001
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        }
+      }
+    },
+    {
+      "stem": "transition_dropout_ba_f0400",
+      "input_rate_hz": 44100,
+      "construction": "Existing deterministic dropout fixture after PCM16 quantization",
+      "fixture": {
+        "stem": "transition_dropout_ba_f0400",
+        "condition": "dropout",
+        "direction": "ba",
+        "f0_hz": 400,
+        "sample_rate_hz": 44100,
+        "duration_s": 1.6,
+        "acceptance_group": "diagnostic",
+        "bandwidths_hz": [
+          60.0,
+          90.0,
+          120.0,
+          150.0,
+          200.0
+        ],
+        "trajectory": {
+          "interpolation": "linear",
+          "times_s": [
+            0.0,
+            0.3,
+            1.3,
+            1.6
+          ],
+          "frequencies_hz": [
+            [
+              750.0,
+              1300.0,
+              2500.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              750.0,
+              1300.0,
+              2500.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              350.0,
+              2100.0,
+              2900.0,
+              3600.0,
+              4500.0
+            ],
+            [
+              350.0,
+              2100.0,
+              2900.0,
+              3600.0,
+              4500.0
+            ]
+          ]
+        },
+        "trajectory_boundaries_s": [
+          0.3,
+          1.3
+        ],
+        "dropouts_s": [
+          [
+            0.7,
+            0.9
+          ]
+        ],
+        "guard_s": 0.06
+      },
+      "input_sha256": "4a80fd70f67cf6c9fe5a09b0e0bb0af33cade57186f5700d801da39beb81c0c4",
+      "modes": {
+        "raw": {
+          "interval_s": [
+            0.76,
+            0.8400000000000001
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        },
+        "default": {
+          "interval_s": [
+            0.76,
+            0.8400000000000001
+          ],
+          "n_frames": 8,
+          "n_frames_with_candidates": 0,
+          "n_present_per_slot": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "passed": true
+        }
+      }
+    }
+  ],
+  "quiet_tracks": [
+    {
+      "stem": "transition_dropout_ab_f0100",
+      "mode": "raw",
+      "input_sha256": "c441f42200c33244503a758e07478e54556d8a1d02525f1a51a5aadaf60c8f11",
+      "quiet_input_sha256": "a251eff7ff745185f6a5db02fc0047121863187a3d7f265a9a612195a43e771a",
+      "interval_s": [
+        0.1,
+        0.6
+      ],
+      "amplitude_scale": 1e-12,
+      "n_frames": 50,
+      "n_present_per_slot": [
+        50,
+        50,
+        50,
+        50,
+        0
+      ],
+      "n_quiet_present_per_slot": [
+        50,
+        50,
+        50,
+        50,
+        0
+      ],
+      "n_frames_with_presence_change": 0,
+      "n_slot_presence_changes": 0,
+      "maximum_frequency_difference_hz": 9.549694368615746e-12,
+      "maximum_bandwidth_difference_hz": 1.9696244635269977e-11,
+      "numerical_tolerance_hz": 1e-06,
+      "passed": true
+    },
+    {
+      "stem": "transition_dropout_ab_f0100",
+      "mode": "default",
+      "input_sha256": "c441f42200c33244503a758e07478e54556d8a1d02525f1a51a5aadaf60c8f11",
+      "quiet_input_sha256": "a251eff7ff745185f6a5db02fc0047121863187a3d7f265a9a612195a43e771a",
+      "interval_s": [
+        0.1,
+        0.6
+      ],
+      "amplitude_scale": 1e-12,
+      "n_frames": 50,
+      "n_present_per_slot": [
+        50,
+        50,
+        50,
+        50,
+        0
+      ],
+      "n_quiet_present_per_slot": [
+        50,
+        50,
+        50,
+        50,
+        0
+      ],
+      "n_frames_with_presence_change": 0,
+      "n_slot_presence_changes": 0,
+      "maximum_frequency_difference_hz": 9.549694368615746e-12,
+      "maximum_bandwidth_difference_hz": 1.9696244635269977e-11,
+      "numerical_tolerance_hz": 1e-06,
+      "passed": true
+    }
+  ],
+  "n_checks": 82,
+  "n_passed": 82,
+  "passed": true,
+  "enforced_in_ci": true
+}

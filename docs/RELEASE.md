@@ -6,7 +6,38 @@ published as a new release.
 
 ## Unreleased source verification
 
-On 14 October 2026, Flutter static analysis reported no issues and all 174
+Revision 4 corrects phase-dependent resampling roundoff in constant regions.
+All 82 native invariant checks pass, including exact constants across eight
+input rates, absence in guarded silent gaps and preservation of candidates
+after attenuation by `1e-12`. Calibration on 168 recordings preceded one
+evaluation run on 192 recordings. Raw gates pass; calibration aggregates,
+evaluation per-file results and the 252-cell grid reproduce revision 3.
+No analysis parameter or numerical target changed.
+
+Backup creation now validates staged content and metadata with the restore
+rules before finalizing a ZIP. Invalid WAVs, TextGrids, pitch corrections
+or conflicting metadata identify the recording and leave earlier backups
+intact. Desktop publication stages a copy on the destination filesystem
+before replacement. Encoding failures close owned file handles and retain
+the original error.
+
+Revision 4 passed all 184 Flutter unit and widget tests, with no static
+analysis issues. Core verification passed 99 unit tests and two property
+tests, with one existing ignored diagnostic; all nine CLI tests and 78
+Python tests passed. Voice-quality and spectral outputs reproduce the
+retained reports byte for byte.
+
+The compiled revision 4 application passed ten targeted native tests on
+Android 16 ARM64 and the iPhone 17 Pro simulator with iOS 26.5: seven bridge
+tests, two backup/restore tests and one rendered measurement-export test.
+Silent gaps produced no formants through the native bridge. Native parsers
+rejected malformed backup sources and mismatched audio metadata without
+replacing earlier backup bytes; the valid backup restored identical content
+and measurements. Export metadata identified algorithm revision 4.
+These checks do not exercise physical devices or the operating system's
+share and document-provider interfaces.
+
+For revision 3 on 14 October 2026, static analysis reported no issues and all 174
 unit and widget tests passed. Rust core tests passed 96 unit tests and two
 property tests, with one existing ignored test; all nine CLI tests passed.
 The validation harness passed 72 Python tests. The fixed candidate passed

@@ -163,7 +163,11 @@ void main() {
       expect(csv, contains('f0_frames,voiced_f0_frames,intensity_frames'));
       final metadata = (report['recordings'] as List).single as Map;
       expect(metadata['analysis_settings'], settings.toMap());
-      expect(metadata['formant_analysis']['algorithm_revision'], 3);
+      expect(metadata['formant_analysis']['algorithm_revision'], 4);
+      expect(
+        metadata['formant_analysis']['resampling']['interior_accumulation'],
+        'local_anchor_plus_weighted_sample_differences',
+      );
       expect(
         metadata['formant_analysis']['root_solver']['failure_policy'],
         'Reject the complete root set; every formant is missing.',

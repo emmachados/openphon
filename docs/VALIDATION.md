@@ -2,8 +2,8 @@
 
 openphon 0.1.0, openphon_core 0.1.0. Track and formant-grid evidence recomputed
 on 14 October 2026 against Praat 6.1.38 through praat-parselmouth 0.4.7.
-The formant algorithm recipe is revision 3, which adds root-set verification
-to revision 2 preprocessing. Voice-quality and spectral
+The formant algorithm recipe is revision 4, which preserves constant regions
+during resampling and retains revision 3 root-set verification. Voice-quality and spectral
 checks were also rerun on 14 October and reproduce the 30 September results.
 
 The existing raw-track synthetic and public-speech gates pass, as do the
@@ -38,6 +38,10 @@ evaluation subset. Root-set verification was subsequently checked at fixed
 numerical tolerances on calibration and scored once on evaluation; all retained
 scores and coverage reproduce revision 2. The partition does not establish that those speakers were
 never inspected in earlier research.
+Revision 4 followed the same order: 168 calibration recordings, a recorded
+freeze decision, then one evaluation run on 192 recordings. All retained
+calibration aggregates and evaluation per-file results, coverage and gates
+are identical to revision 3.
 
 The script synthesized 19 test signals and two stress signals in a new
 temporary directory, copied only manifest-listed public audio there,
@@ -184,8 +188,41 @@ matched-filter calibration aggregates on 168 files are identical to revision 2.
 The frozen candidate was then scored once on 192 evaluation files. Every
 recorded numerical result and coverage count in the release report is unchanged,
 as are the 252-cell known-pole scores. No acoustic parameter, speaker partition
-or target was adjusted. Export metadata identifies formant algorithm revision 3
-and records the numerical rejection policy.
+or target was adjusted. Revision 3 export metadata records the numerical
+rejection policy, which revision 4 retains.
+
+## Constant-region resampling
+
+Subtracting the whole-recording mean converts an exact zero gap into a
+nonzero constant when the recording has a nonzero mean. The preceding
+resampler accumulated weighted samples directly. Floating-point summation
+produced different residues at different output phases, so subsequent frame
+centering left a nonzero signal and Burg analysis could report formants.
+
+Revision 4 uses a local sample as an anchor whenever the complete resampling
+kernel lies inside the recording. With normalized weights, it computes
+`anchor + sum(weight * (sample - anchor))`; the generic path divides the
+weighted difference sum by the kernel gain. Every difference in a constant
+region is exactly zero. The filter coefficients, cutoff and support remain
+unchanged. At recording boundaries, the preceding weighted accumulation and
+zero extension are retained. This correction introduces no amplitude gate
+and changes neither LPC order nor candidate selection.
+
+The [native invariants](../validation/release_resampling_invariants.json)
+pass all 82 checks. Forty constant inputs at eight rates from 8 to 192 kHz
+retain exactly equal interior samples, including the generic 44,101 Hz path.
+Eight pulse controls and eight PCM16 dropout fixtures produce no candidates
+in 128 guarded frames per configuration, for both raw and default selection.
+The active vowel attenuated by `1e-12` retains all 200 candidate slots in
+50 frames per configuration; maximum frequency and bandwidth changes are
+`9.55e-12` and `1.97e-11` Hz. These are numerical invariance checks, not
+formant-accuracy estimates.
+
+The [calibration record](../validation/release_resampling_calibration.json)
+retains the decision and revision 3 comparison. All existing raw gates pass;
+the 252-cell known-pole results are unchanged. The shipped selection's
+previously reported errors remain. Measurement metadata records algorithm
+revision 4 and the distinct interior and boundary accumulation rules.
 
 ## Shipped formant results
 
@@ -278,6 +315,9 @@ the adult-female vowel example in the
 [published tracking manual](https://www.fon.hum.uva.nl/praat/manual/Formant__Track___.html).
 They are an explicit frequency prior. The coefficients are its illustrative
 unit costs, not claimed software defaults or fitted speaker parameters.
+These retained experiment reports use revision 3 native candidates and
+preserve that source hash. Their gap-presence findings below describe that
+revision; revision 4 gap checks are reported separately above.
 
 Each slot may be missing, at cost 2 per frame. Each observed/missing boundary
 costs half the largest admissible octave jump. A bounded gap therefore cannot
@@ -338,6 +378,9 @@ no-continuity scores agree in the screen's accuracy regions, but some excluded
 boundary and gap results differ. Production retains the existing per-frame
 selection rule. The experiment establishes that this fixed candidate does
 not support deployment; no cost or cutoff was adjusted to rescue it.
+Revision 4 removes the resampling residue behind the gap candidates in these
+fixtures. It does not change the selector's frequency prior or establish that
+the failed experimental selector is suitable for deployment.
 
 ## Voicing agreement
 
@@ -429,6 +472,22 @@ Flutter suite and static analysis also passed on this revision. Native core
 verification passed 96 unit tests and two property tests, with one existing
 ignored test; all nine CLI tests and 72 Python tests passed.
 
+Revision 4 passed all 184 Flutter tests and static analysis without issues.
+Core verification passed 99 unit tests and two property tests, with one
+existing ignored diagnostic; all nine CLI tests and 78 Python tests passed.
+Backup regressions check malformed files, metadata discrepancies, source
+changes after snapshotting and failed copy, read, write and close operations.
+They verify preserved destination bytes, closed handles and the original
+error when cleanup also fails.
+Ten targeted native tests also passed on each of the Android 16 ARM64
+emulator and iPhone 17 Pro simulator running iOS 26.5. Seven bridge tests
+include absence of formants in silent gaps. Two backup tests verify a valid
+restore and rejection of malformed content or mismatched WAV metadata by
+the actual Rust parsers, with earlier archive bytes preserved. The rendered
+export test verifies revision 4 metadata and completed native measurements.
+Share-channel interception remains in use; these tests do not verify the
+operating system's share interface or physical devices.
+
 Earlier native checks cover the Rust bridge, analysis, malformed input,
 TextGrid replacement, pitch correction, playback and storage preparation.
 The [release record](RELEASE.md) preserves their build-specific results,
@@ -452,21 +511,26 @@ python synthesize.py --grid
 python formant_grid.py --out release_formant_grid.json
 python formant_diagnosis.py --out release_formant_diagnosis.json
 python root_solver_check.py --out release_root_solver_check.json
-python temporal_formant_check.py --out release_temporal_formant_check.json
-python temporal_formant_challenge.py --out release_temporal_formant_challenge.json
+python resampling_check.py --out release_resampling_invariants.json
+python temporal_formant_check.py --out temporal_formant_check.json
+python temporal_formant_challenge.py --screen temporal_formant_check.json --out temporal_formant_challenge.json
 python voice_quality_check.py
 python spectral_check.py
 ```
+
+The temporal commands above score the current native source into separate
+files. Reproducing the retained revision 3 experiment reports requires
+commit `f463995`; their source hashes deliberately retain that history.
 
 The release script enforces the existing raw-track targets in its exit
 status; `all_targets_passed` and `checks` record those values. Shipped-path
 comparisons remain explicit diagnostics. The saved 14 October run used
 Python 3.14.7, NumPy 2.5.3 and rustc 1.97.1 on macOS arm64. The JSON records
 the complete environment and source hashes. CI regenerates its own evidence
-on Linux. The last Linux run, at the previous tracker
-([run 36534135577](https://github.com/emmachados/openphon/actions/runs/36534135577)),
-measured public voicing agreement of 89.48492% against 89.48285% on macOS;
-no Linux run exists yet for the current tracker.
+on Linux. Revision 3 passed the complete Linux validation workflow
+([run 38539315362](https://github.com/emmachados/openphon/actions/runs/38539315362)).
+The retained revision 4 figures above are the macOS results; its CI workflow
+also enforces the new constant-preservation and silent-gap checks.
 
 Historical research reports are outside the public release source selection.
 Their scores, partitions and causal claims are not used as release evidence.

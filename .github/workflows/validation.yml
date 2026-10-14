@@ -59,7 +59,7 @@ jobs:
 
       - name: Test displayed-slot scoring and missingness
         working-directory: validation
-        run: python -m unittest test_formant_evidence test_formant_diagnosis test_root_solver_check test_formant_transitions test_temporal_formants test_temporal_formant_check test_temporal_formant_challenge
+        run: python -m unittest test_formant_evidence test_formant_diagnosis test_root_solver_check test_formant_transitions test_temporal_formants test_temporal_formant_check test_temporal_formant_challenge test_resampling_check
 
       - name: Core unit tests
         run: cargo test --release --manifest-path core/Cargo.toml
@@ -70,6 +70,10 @@ jobs:
       - name: Native root acceptance controls
         working-directory: validation
         run: python root_solver_check.py --out root_solver_check.json
+
+      - name: Constant preservation and silent-gap invariants
+        working-directory: validation
+        run: python resampling_check.py --out resampling_check.json
 
       - name: Synthesise the benchmark tiers
         working-directory: validation
@@ -127,6 +131,7 @@ jobs:
             validation/formant_grid.txt
             validation/formant_diagnosis.json
             validation/root_solver_check.json
+            validation/resampling_check.json
             validation/temporal_formant_check.json
             validation/temporal_formant_challenge.json
             validation/voice_quality_report.txt

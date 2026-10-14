@@ -17,7 +17,7 @@ const _formantMaxBandwidthHz = 400.0;
 
 Map<String, Object?> _effectiveFormantAnalysis(AnalysisSettings settings) => {
   'method': 'burg_lpc',
-  'algorithm_revision': 3,
+  'algorithm_revision': 4,
   'parameters': {
     'time_step_s': settings.trackTimeStepS,
     'max_formants': settings.maxFormants,
@@ -41,6 +41,8 @@ Map<String, Object?> _effectiveFormantAnalysis(AnalysisSettings settings) => {
     'half_width_input_samples': 'ceil(32 / min(1, rate_ratio))',
     'cutoff_relative_to_input_nyquist': '0.95 * min(1, rate_ratio)',
     'kernel_normalization': 'unit_sum_full_kernel_per_output_phase',
+    'interior_accumulation': 'local_anchor_plus_weighted_sample_differences',
+    'boundary_accumulation': 'weighted_samples_with_zero_extension',
     'boundary_extension': 'zero',
     'equal_sample_rates': 'bypass',
   },
@@ -61,7 +63,8 @@ Map<String, Object?> _effectiveFormantAnalysis(AnalysisSettings settings) => {
         'Finite converged complete root set, residuals, unique conjugate pairs, '
         'and polynomial coefficient reconstruction.',
     'failure_policy': 'Reject the complete root set; every formant is missing.',
-    'accuracy_limit': 'Numerical acceptance does not bound individual root error.',
+    'accuracy_limit':
+        'Numerical acceptance does not bound individual root error.',
   },
   'candidate_selection': {
     'frequency_lower_bound_hz': 50.0,

@@ -22,6 +22,10 @@ software version.
 Backups are versioned ZIP archives containing complete analysis settings and
 associated files. Restore verifies checksums and native file contents before
 adding new entries, and preserves the existing library.
+Backup creation validates the copied WAV, TextGrid and pitch corrections with
+the same content and metadata rules used by restore. A rejected recording is
+identified before the archive is finalized; a failed backup preserves an
+existing destination file.
 
 Validation now reports the default bandwidth-filtered formant output alongside
 raw LPC candidates, including missingness and error tails. A 252-cell synthetic
@@ -36,11 +40,17 @@ radius instead of zero. The 400 Hz selection cutoff and existing numerical
 targets are unchanged. Calibration and evaluation retain the remaining
 known-resonance errors; increasing the cutoff cannot resolve the documented
 pair of conflicting selection cases. Measurement metadata identifies this
-formant algorithm as revision 3 and records its effective parameters and
+formant algorithm as revision 4 and records its effective parameters and
 root rejection policy. Root sets must converge and pass finite, residual,
 conjugacy and coefficient-reconstruction checks before producing formants.
 Unresolved sets are missing estimates. Fixed numerical controls and unchanged
 calibration/evaluation scores accompany the change.
+
+Resampling now accumulates differences from a local sample when the full
+kernel lies inside the recording. Exactly constant regions remain constant,
+so silent gaps do not acquire numerical residue that LPC can report as
+formants. Recording boundaries retain zero extension. No amplitude threshold
+or selection parameter is added.
 
 An offline temporal-selection experiment adds 32 known-resonance transition
 and control fixtures, explicit missing states, paired-support scoring and a

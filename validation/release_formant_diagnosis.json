@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-10-14T08:17:20.606748+00:00",
+  "generated_at_utc": "2026-10-14T09:14:08.760861+00:00",
   "n_grid_cells": 252,
   "n_synthetic_files": 19,
   "operating_point": {
@@ -14,7 +14,7 @@
     "crate_version": "0.1.0"
   },
   "source_sha256": {
-    "core/src/formant.rs": "06cc90ad97904920369b2ba882bf8da79aac1671f0de10b011accfe380ddf1c7",
+    "core/src/formant.rs": "fe1d500f743cb6bf0be5308b1cbbcbe5c35193705077d11290e553a0cfce05c9",
     "core/src/intensity.rs": "ff0e7ab9d5992cf3947e7697eee36813ec17b259baa9c34c62c2c974e967511d",
     "core/src/lib.rs": "16560bc4cc408f424bea29f428d406439c5cbcfbde940affe3d7987d6a07685f",
     "core/src/pitch.rs": "053dc590515775077262bfcca3ec15d12bc71d4dd1501294fe0c02ac95cdbbf5",
@@ -34,7 +34,7 @@
     "validation/synthesize.py": "307efc4dd6e0f77d94978de01988a7eac266f00ec55c9b116e7d8aaed56ad739",
     "validation/formant_evidence.py": "c4277f23e1b4c8eb4d25a28c8d7ffaca3e74dc68ff19deb75d8e1d9925955c45"
   },
-  "native_binary_sha256": "c557b7d628f24b308646d9b3053d6bd6cee8e45d880d2f777083dcec6d290506",
+  "native_binary_sha256": "473d2b24d47ba0164a314faddeaed612e8cc9af489ac217efcdadb6d554bb845",
   "grid_truth_sha256": "be2263f3aeab14fea96b01bb60011706fd72e0d9b20af786e0536ce217f63c00",
   "environment": {
     "python": "3.14.7",
@@ -303,31 +303,31 @@
         {
           "slot": 1,
           "frequency_hz": 402.505,
-          "bandwidth_hz": 13.765254137340621,
+          "bandwidth_hz": 13.765254137335937,
           "passes_400_hz": true
         },
         {
           "slot": 2,
           "frequency_hz": 833.676,
-          "bandwidth_hz": 59.38677202959608,
+          "bandwidth_hz": 59.38677202958066,
           "passes_400_hz": true
         },
         {
           "slot": 3,
           "frequency_hz": 2448.941,
-          "bandwidth_hz": 887.8002453663956,
+          "bandwidth_hz": 887.8002453659535,
           "passes_400_hz": false
         },
         {
           "slot": 4,
           "frequency_hz": 2663.618,
-          "bandwidth_hz": 785.3143016030525,
+          "bandwidth_hz": 785.3143016027741,
           "passes_400_hz": false
         },
         {
           "slot": 5,
           "frequency_hz": 3649.168,
-          "bandwidth_hz": 277.06163115777673,
+          "bandwidth_hz": 277.0616311577687,
           "passes_400_hz": true
         }
       ],
@@ -352,7 +352,7 @@
         {
           "slot": 1,
           "frequency_hz": 414.205,
-          "bandwidth_hz": 40.23848709625535,
+          "bandwidth_hz": 40.238487096255746,
           "passes_400_hz": true
         },
         {
@@ -370,13 +370,13 @@
         {
           "slot": 4,
           "frequency_hz": 3610.673,
-          "bandwidth_hz": 84.20333437222476,
+          "bandwidth_hz": 84.20333437222436,
           "passes_400_hz": true
         },
         {
           "slot": 5,
           "frequency_hz": 4336.363,
-          "bandwidth_hz": 156.9010670950428,
+          "bandwidth_hz": 156.90106709504323,
           "passes_400_hz": true
         }
       ],
@@ -393,7 +393,7 @@
       1750.0,
       3050.0
     ],
-    "minimum_cutoff_to_retain_a_candidate_in_region_hz": 785.3143016030525,
+    "minimum_cutoff_to_retain_a_candidate_in_region_hz": 785.3143016027741,
     "extra_candidates_admitted_at_that_cutoff": [
       {
         "slot": 2,
@@ -782,7 +782,7 @@
             "median_abs_err_hz": 90.82000000000016,
             "rmse_hz": 93.28003696754567
           },
-          "nearest_rejected_bandwidth_median_hz": 411.4721677294768
+          "nearest_rejected_bandwidth_median_hz": 411.47216773266933
         }
       }
     },
@@ -1556,7 +1556,7 @@
             "median_abs_err_hz": 43.771000000000186,
             "rmse_hz": 42.997575195843744
           },
-          "nearest_rejected_bandwidth_median_hz": 822.5829308302112
+          "nearest_rejected_bandwidth_median_hz": 822.5829308354629
         }
       }
     },
@@ -1680,7 +1680,7 @@
             "median_abs_err_hz": 107.72800000000007,
             "rmse_hz": 107.24594965687783
           },
-          "nearest_rejected_bandwidth_median_hz": 412.78630881572934
+          "nearest_rejected_bandwidth_median_hz": 412.78630881602675
         },
         "F5": {
           "n_frames": 36,
@@ -2184,7 +2184,7 @@
             "median_abs_err_hz": 61.480999999999995,
             "rmse_hz": 61.30162490981232
           },
-          "nearest_rejected_bandwidth_median_hz": 747.3589266457416
+          "nearest_rejected_bandwidth_median_hz": 747.3589266469121
         },
         "F4": {
           "n_frames": 36,
@@ -2225,31 +2225,31 @@
           {
             "slot": 1,
             "frequency_hz": 402.505,
-            "bandwidth_hz": 13.765254137340621,
+            "bandwidth_hz": 13.765254137335937,
             "passes_400_hz": true
           },
           {
             "slot": 2,
             "frequency_hz": 833.676,
-            "bandwidth_hz": 59.38677202959608,
+            "bandwidth_hz": 59.38677202958066,
             "passes_400_hz": true
           },
           {
             "slot": 3,
             "frequency_hz": 2448.941,
-            "bandwidth_hz": 887.8002453663956,
+            "bandwidth_hz": 887.8002453659535,
             "passes_400_hz": false
           },
           {
             "slot": 4,
             "frequency_hz": 2663.618,
-            "bandwidth_hz": 785.3143016030525,
+            "bandwidth_hz": 785.3143016027741,
             "passes_400_hz": false
           },
           {
             "slot": 5,
             "frequency_hz": 3649.168,
-            "bandwidth_hz": 277.06163115777673,
+            "bandwidth_hz": 277.0616311577687,
             "passes_400_hz": true
           }
         ],
@@ -3388,7 +3388,7 @@
             "median_abs_err_hz": 39.56099999999992,
             "rmse_hz": 38.04735996353018
           },
-          "nearest_rejected_bandwidth_median_hz": 638.7698113575717
+          "nearest_rejected_bandwidth_median_hz": 638.7698113514316
         },
         "F3": {
           "n_frames": 36,
@@ -3428,31 +3428,31 @@
           {
             "slot": 1,
             "frequency_hz": 301.033,
-            "bandwidth_hz": 4.780879931217794,
+            "bandwidth_hz": 4.780879931208841,
             "passes_400_hz": true
           },
           {
             "slot": 2,
             "frequency_hz": 1208.495,
-            "bandwidth_hz": 618.268510982456,
+            "bandwidth_hz": 618.2685109816763,
             "passes_400_hz": false
           },
           {
             "slot": 3,
             "frequency_hz": 1339.561,
-            "bandwidth_hz": 638.7698113575717,
+            "bandwidth_hz": 638.7698113514316,
             "passes_400_hz": false
           },
           {
             "slot": 4,
             "frequency_hz": 2641.548,
-            "bandwidth_hz": 131.7430235039021,
+            "bandwidth_hz": 131.74302350320096,
             "passes_400_hz": true
           },
           {
             "slot": 5,
             "frequency_hz": 3487.124,
-            "bandwidth_hz": 281.09207274447414,
+            "bandwidth_hz": 281.092072742063,
             "passes_400_hz": true
           }
         ],
@@ -3695,7 +3695,7 @@
             "median_abs_err_hz": 110.67800000000011,
             "rmse_hz": 110.69065696169264
           },
-          "nearest_rejected_bandwidth_median_hz": 583.8396115807902
+          "nearest_rejected_bandwidth_median_hz": 583.8396115827716
         },
         "F3": {
           "n_frames": 36,
@@ -3735,31 +3735,31 @@
           {
             "slot": 1,
             "frequency_hz": 351.655,
-            "bandwidth_hz": 6.924623623201154,
+            "bandwidth_hz": 6.924623623228809,
             "passes_400_hz": true
           },
           {
             "slot": 2,
             "frequency_hz": 1189.322,
-            "bandwidth_hz": 583.8396093751755,
+            "bandwidth_hz": 583.8396093771723,
             "passes_400_hz": false
           },
           {
             "slot": 3,
             "frequency_hz": 1455.038,
-            "bandwidth_hz": 424.1910281499236,
+            "bandwidth_hz": 424.19102815070516,
             "passes_400_hz": false
           },
           {
             "slot": 4,
             "frequency_hz": 2572.258,
-            "bandwidth_hz": 133.34564793707847,
+            "bandwidth_hz": 133.34564793743826,
             "passes_400_hz": true
           },
           {
             "slot": 5,
             "frequency_hz": 3465.067,
-            "bandwidth_hz": 59.89498549935255,
+            "bandwidth_hz": 59.894985499552256,
             "passes_400_hz": true
           }
         ],
@@ -4138,7 +4138,7 @@
             "median_abs_err_hz": 149.96800000000007,
             "rmse_hz": 149.68517841744077
           },
-          "nearest_rejected_bandwidth_median_hz": 940.6982975116705
+          "nearest_rejected_bandwidth_median_hz": 940.6982975120376
         },
         "F4": {
           "n_frames": 36,
@@ -4179,31 +4179,31 @@
           {
             "slot": 1,
             "frequency_hz": 403.595,
-            "bandwidth_hz": 11.020362199728375,
+            "bandwidth_hz": 11.020362199727593,
             "passes_400_hz": true
           },
           {
             "slot": 2,
             "frequency_hz": 1199.955,
-            "bandwidth_hz": 74.02611054000609,
+            "bandwidth_hz": 74.0261105400069,
             "passes_400_hz": true
           },
           {
             "slot": 3,
             "frequency_hz": 2434.89,
-            "bandwidth_hz": 612.5076026325621,
+            "bandwidth_hz": 612.5076026323154,
             "passes_400_hz": false
           },
           {
             "slot": 4,
             "frequency_hz": 2759.859,
-            "bandwidth_hz": 941.471892252858,
+            "bandwidth_hz": 941.4718922532455,
             "passes_400_hz": false
           },
           {
             "slot": 5,
             "frequency_hz": 3650.79,
-            "bandwidth_hz": 288.26187800601843,
+            "bandwidth_hz": 288.26187800612735,
             "passes_400_hz": true
           }
         ],
@@ -5858,7 +5858,7 @@
             "median_abs_err_hz": 127.88549999999998,
             "rmse_hz": 128.01187786848794
           },
-          "nearest_rejected_bandwidth_median_hz": 521.057405132864
+          "nearest_rejected_bandwidth_median_hz": 521.0574051330876
         },
         "F3": {
           "n_frames": 36,
@@ -5994,7 +5994,7 @@
             "median_abs_err_hz": 92.23700000000008,
             "rmse_hz": 93.14165791193176
           },
-          "nearest_rejected_bandwidth_median_hz": 974.125151247729
+          "nearest_rejected_bandwidth_median_hz": 974.1251512480524
         },
         "F4": {
           "n_frames": 36,
@@ -6035,31 +6035,31 @@
           {
             "slot": 1,
             "frequency_hz": 404.414,
-            "bandwidth_hz": 11.789201938445489,
+            "bandwidth_hz": 11.789201938447048,
             "passes_400_hz": true
           },
           {
             "slot": 2,
             "frequency_hz": 1580.669,
-            "bandwidth_hz": 171.9212453119439,
+            "bandwidth_hz": 171.9212453119349,
             "passes_400_hz": true
           },
           {
             "slot": 3,
             "frequency_hz": 2455.373,
-            "bandwidth_hz": 596.3820374468509,
+            "bandwidth_hz": 596.3820374466233,
             "passes_400_hz": false
           },
           {
             "slot": 4,
             "frequency_hz": 2705.268,
-            "bandwidth_hz": 1000.5628496469396,
+            "bandwidth_hz": 1000.5628496473441,
             "passes_400_hz": false
           },
           {
             "slot": 5,
             "frequency_hz": 3641.347,
-            "bandwidth_hz": 284.65603460296416,
+            "bandwidth_hz": 284.65603460306284,
             "passes_400_hz": true
           }
         ],
@@ -7064,7 +7064,7 @@
             "median_abs_err_hz": 7.563999999999851,
             "rmse_hz": 7.522160390768233
           },
-          "nearest_rejected_bandwidth_median_hz": 4689.493314598676
+          "nearest_rejected_bandwidth_median_hz": 4689.49331459615
         },
         "F3": {
           "n_frames": 36,
@@ -7850,7 +7850,7 @@
             "median_abs_err_hz": 17.84349999999995,
             "rmse_hz": 23.814768109538786
           },
-          "nearest_rejected_bandwidth_median_hz": 1426.6866008556954
+          "nearest_rejected_bandwidth_median_hz": 1426.6866008557372
         },
         "F4": {
           "n_frames": 36,
@@ -8882,7 +8882,7 @@
             "median_abs_err_hz": 26.735500000000002,
             "rmse_hz": 26.894819334358402
           },
-          "nearest_rejected_bandwidth_median_hz": 435.0846318948329
+          "nearest_rejected_bandwidth_median_hz": 435.0846318948179
         },
         "F4": {
           "n_frames": 36,
@@ -9398,7 +9398,7 @@
             "median_abs_err_hz": 157.28900000000021,
             "rmse_hz": 157.31286358100414
           },
-          "nearest_rejected_bandwidth_median_hz": 451.48296388363246
+          "nearest_rejected_bandwidth_median_hz": 451.4829638836219
         },
         "F4": {
           "n_frames": 36,
@@ -10552,7 +10552,7 @@
             "median_abs_err_hz": 59.4015,
             "rmse_hz": 59.57398645988214
           },
-          "nearest_rejected_bandwidth_median_hz": 458.08064078136465
+          "nearest_rejected_bandwidth_median_hz": 458.08064077974996
         },
         "F3": {
           "n_frames": 36,
@@ -10592,31 +10592,31 @@
           {
             "slot": 1,
             "frequency_hz": 478.113,
-            "bandwidth_hz": 114.34914424908217,
+            "bandwidth_hz": 114.3491442487954,
             "passes_400_hz": true
           },
           {
             "slot": 2,
             "frequency_hz": 719.961,
-            "bandwidth_hz": 1181.7166650184943,
+            "bandwidth_hz": 1181.7166650299664,
             "passes_400_hz": false
           },
           {
             "slot": 3,
             "frequency_hz": 959.084,
-            "bandwidth_hz": 468.7519023182344,
+            "bandwidth_hz": 468.75190231539807,
             "passes_400_hz": false
           },
           {
             "slot": 4,
             "frequency_hz": 2553.983,
-            "bandwidth_hz": 119.71722377584861,
+            "bandwidth_hz": 119.71722377626453,
             "passes_400_hz": true
           },
           {
             "slot": 5,
             "frequency_hz": 3462.373,
-            "bandwidth_hz": 114.98820841705727,
+            "bandwidth_hz": 114.98820841765583,
             "passes_400_hz": true
           }
         ],
@@ -11511,7 +11511,7 @@
             "median_abs_err_hz": 7.244999999999891,
             "rmse_hz": 7.745034378734387
           },
-          "nearest_rejected_bandwidth_median_hz": 625.0819583664322
+          "nearest_rejected_bandwidth_median_hz": 625.0819583659172
         },
         "F4": {
           "n_frames": 36,
@@ -11552,31 +11552,31 @@
           {
             "slot": 1,
             "frequency_hz": 401.356,
-            "bandwidth_hz": 8.9546111570953,
+            "bandwidth_hz": 8.954611157101146,
             "passes_400_hz": true
           },
           {
             "slot": 2,
             "frequency_hz": 823.953,
-            "bandwidth_hz": 51.606019496221634,
+            "bandwidth_hz": 51.606019496219666,
             "passes_400_hz": true
           },
           {
             "slot": 3,
             "frequency_hz": 2489.923,
-            "bandwidth_hz": 1300.4038387174246,
+            "bandwidth_hz": 1300.4038387183732,
             "passes_400_hz": false
           },
           {
             "slot": 4,
             "frequency_hz": 2590.852,
-            "bandwidth_hz": 633.8113234745618,
+            "bandwidth_hz": 633.8113234740247,
             "passes_400_hz": false
           },
           {
             "slot": 5,
             "frequency_hz": 3647.032,
-            "bandwidth_hz": 303.7096404274107,
+            "bandwidth_hz": 303.709640427298,
             "passes_400_hz": true
           }
         ],
@@ -12715,7 +12715,7 @@
             "median_abs_err_hz": 210.17200000000003,
             "rmse_hz": 210.1952774393506
           },
-          "nearest_rejected_bandwidth_median_hz": 425.3637415015089
+          "nearest_rejected_bandwidth_median_hz": 425.3637415017043
         },
         "F3": {
           "n_frames": 36,
@@ -12755,31 +12755,31 @@
           {
             "slot": 1,
             "frequency_hz": 352.155,
-            "bandwidth_hz": 90.64857511014591,
+            "bandwidth_hz": 90.64857511016267,
             "passes_400_hz": true
           },
           {
             "slot": 2,
             "frequency_hz": 1058.736,
-            "bandwidth_hz": 344.2993215243195,
+            "bandwidth_hz": 344.29932152447606,
             "passes_400_hz": true
           },
           {
             "slot": 3,
             "frequency_hz": 1510.172,
-            "bandwidth_hz": 425.3637415015089,
+            "bandwidth_hz": 425.3637415017043,
             "passes_400_hz": false
           },
           {
             "slot": 4,
             "frequency_hz": 2640.767,
-            "bandwidth_hz": 92.5439588369204,
+            "bandwidth_hz": 92.54395883696311,
             "passes_400_hz": true
           },
           {
             "slot": 5,
             "frequency_hz": 3450.155,
-            "bandwidth_hz": 173.2488908247826,
+            "bandwidth_hz": 173.24889082489244,
             "passes_400_hz": true
           }
         ],
@@ -13022,7 +13022,7 @@
             "median_abs_err_hz": 179.4000000000001,
             "rmse_hz": 179.37301650324181
           },
-          "nearest_rejected_bandwidth_median_hz": 435.25107020012024
+          "nearest_rejected_bandwidth_median_hz": 435.2510702001682
         },
         "F3": {
           "n_frames": 36,
@@ -13416,7 +13416,7 @@
             "median_abs_err_hz": 16.13649999999984,
             "rmse_hz": 20.108024959646748
           },
-          "nearest_rejected_bandwidth_median_hz": 581.0307397217125
+          "nearest_rejected_bandwidth_median_hz": 581.0307397216685
         },
         "F4": {
           "n_frames": 36,
@@ -13457,31 +13457,31 @@
           {
             "slot": 1,
             "frequency_hz": 402.745,
-            "bandwidth_hz": 7.904528612947096,
+            "bandwidth_hz": 7.904528612945927,
             "passes_400_hz": true
           },
           {
             "slot": 2,
             "frequency_hz": 1190.166,
-            "bandwidth_hz": 90.44657689414872,
+            "bandwidth_hz": 90.44657689415152,
             "passes_400_hz": true
           },
           {
             "slot": 3,
             "frequency_hz": 2508.734,
-            "bandwidth_hz": 1309.1342152386396,
+            "bandwidth_hz": 1309.1342152396655,
             "passes_400_hz": false
           },
           {
             "slot": 4,
             "frequency_hz": 2571.931,
-            "bandwidth_hz": 584.8998407614922,
+            "bandwidth_hz": 584.8998407613121,
             "passes_400_hz": false
           },
           {
             "slot": 5,
             "frequency_hz": 3637.233,
-            "bandwidth_hz": 290.36521406152997,
+            "bandwidth_hz": 290.3652140617572,
             "passes_400_hz": true
           }
         ],
@@ -15136,7 +15136,7 @@
             "median_abs_err_hz": 38.136999999999944,
             "rmse_hz": 38.1554642198641
           },
-          "nearest_rejected_bandwidth_median_hz": 407.22784485123674
+          "nearest_rejected_bandwidth_median_hz": 407.2278448514725
         },
         "F3": {
           "n_frames": 36,
@@ -15176,31 +15176,31 @@
           {
             "slot": 1,
             "frequency_hz": 402.538,
-            "bandwidth_hz": 6.558315460604977,
+            "bandwidth_hz": 6.558315460604198,
             "passes_400_hz": true
           },
           {
             "slot": 2,
             "frequency_hz": 1460.173,
-            "bandwidth_hz": 628.0649835271286,
+            "bandwidth_hz": 628.0649835271538,
             "passes_400_hz": false
           },
           {
             "slot": 3,
             "frequency_hz": 1716.83,
-            "bandwidth_hz": 392.5817339731553,
+            "bandwidth_hz": 392.5817339731766,
             "passes_400_hz": true
           },
           {
             "slot": 4,
             "frequency_hz": 2580.158,
-            "bandwidth_hz": 177.58803442594078,
+            "bandwidth_hz": 177.5880344259555,
             "passes_400_hz": true
           },
           {
             "slot": 5,
             "frequency_hz": 3475.649,
-            "bandwidth_hz": 156.53738971487934,
+            "bandwidth_hz": 156.53738971491063,
             "passes_400_hz": true
           }
         ],
@@ -15321,7 +15321,7 @@
             "median_abs_err_hz": 15.045000000000073,
             "rmse_hz": 16.40037303606928
           },
-          "nearest_rejected_bandwidth_median_hz": 526.7678028282055
+          "nearest_rejected_bandwidth_median_hz": 526.7678028282038
         },
         "F4": {
           "n_frames": 36,
@@ -18675,7 +18675,7 @@
             "median_abs_err_hz": 170.25700000000006,
             "rmse_hz": 170.2576667164279
           },
-          "nearest_rejected_bandwidth_median_hz": 450.9617236121885
+          "nearest_rejected_bandwidth_median_hz": 450.9617236121953
         },
         "F4": {
           "n_frames": 36,
@@ -19829,7 +19829,7 @@
             "median_abs_err_hz": 25.975000000000023,
             "rmse_hz": 25.993169338843217
           },
-          "nearest_rejected_bandwidth_median_hz": 762.940334586317
+          "nearest_rejected_bandwidth_median_hz": 762.9403345861003
         },
         "F3": {
           "n_frames": 36,
@@ -20739,7 +20739,7 @@
             "median_abs_err_hz": 16.340000000000146,
             "rmse_hz": 16.7168798482586
           },
-          "nearest_rejected_bandwidth_median_hz": 448.73619818287744
+          "nearest_rejected_bandwidth_median_hz": 448.7361981828903
         },
         "F4": {
           "n_frames": 36,
@@ -22545,7 +22545,7 @@
             "median_abs_err_hz": 7.1784999999999854,
             "rmse_hz": 7.916073972550418
           },
-          "nearest_rejected_bandwidth_median_hz": 415.0172886816015
+          "nearest_rejected_bandwidth_median_hz": 415.0172886816032
         },
         "F4": {
           "n_frames": 36,
@@ -25383,7 +25383,7 @@
             "median_abs_err_hz": 28.384000000000015,
             "rmse_hz": 28.388672866323137
           },
-          "nearest_rejected_bandwidth_median_hz": 401.74136727932165
+          "nearest_rejected_bandwidth_median_hz": 401.7413672793221
         },
         "F4": {
           "n_frames": 36,
@@ -33233,7 +33233,7 @@
             "median_abs_err_hz": 26.746500000000026,
             "rmse_hz": 26.71028705178756
           },
-          "nearest_rejected_bandwidth_median_hz": 840.2570255208714
+          "nearest_rejected_bandwidth_median_hz": 840.2570255208161
         },
         "F2": {
           "n_frames": 36,
@@ -33956,7 +33956,7 @@
           {
             "slot": 1,
             "frequency_hz": 414.205,
-            "bandwidth_hz": 40.23848709625535,
+            "bandwidth_hz": 40.238487096255746,
             "passes_400_hz": true
           },
           {
@@ -33974,13 +33974,13 @@
           {
             "slot": 4,
             "frequency_hz": 3610.673,
-            "bandwidth_hz": 84.20333437222476,
+            "bandwidth_hz": 84.20333437222436,
             "passes_400_hz": true
           },
           {
             "slot": 5,
             "frequency_hz": 4336.363,
-            "bandwidth_hz": 156.9010670950428,
+            "bandwidth_hz": 156.90106709504323,
             "passes_400_hz": true
           }
         ],
@@ -34167,7 +34167,7 @@
             "median_abs_err_hz": 3.142499999999984,
             "rmse_hz": 4.145546203026631
           },
-          "nearest_rejected_bandwidth_median_hz": 1268.5165080721608
+          "nearest_rejected_bandwidth_median_hz": 1268.5165080725799
         },
         "F2": {
           "n_frames": 87,
@@ -34219,31 +34219,31 @@
           {
             "slot": 1,
             "frequency_hz": 843.52,
-            "bandwidth_hz": 103.77387761282546,
+            "bandwidth_hz": 103.77387761282627,
             "passes_400_hz": true
           },
           {
             "slot": 2,
             "frequency_hz": 859.063,
-            "bandwidth_hz": 1245.5334842323114,
+            "bandwidth_hz": 1245.5334842322952,
             "passes_400_hz": false
           },
           {
             "slot": 3,
             "frequency_hz": 1269.691,
-            "bandwidth_hz": 87.3881977317725,
+            "bandwidth_hz": 87.38819773176373,
             "passes_400_hz": true
           },
           {
             "slot": 4,
             "frequency_hz": 2758.871,
-            "bandwidth_hz": 89.80270049528833,
+            "bandwidth_hz": 89.80270049528315,
             "passes_400_hz": true
           },
           {
             "slot": 5,
             "frequency_hz": 3753.184,
-            "bandwidth_hz": 206.5255910253398,
+            "bandwidth_hz": 206.525591025306,
             "passes_400_hz": true
           }
         ],
@@ -34696,31 +34696,31 @@
           {
             "slot": 1,
             "frequency_hz": 662.035,
-            "bandwidth_hz": 130.00354605382643,
+            "bandwidth_hz": 130.003546053847,
             "passes_400_hz": true
           },
           {
             "slot": 2,
             "frequency_hz": 1060.472,
-            "bandwidth_hz": 927.7026487548533,
+            "bandwidth_hz": 927.7026487547909,
             "passes_400_hz": false
           },
           {
             "slot": 3,
             "frequency_hz": 1233.948,
-            "bandwidth_hz": 154.69011203550846,
+            "bandwidth_hz": 154.69011203553973,
             "passes_400_hz": true
           },
           {
             "slot": 4,
             "frequency_hz": 2598.822,
-            "bandwidth_hz": 60.798874055298135,
+            "bandwidth_hz": 60.79887405529377,
             "passes_400_hz": true
           },
           {
             "slot": 5,
             "frequency_hz": 3443.811,
-            "bandwidth_hz": 104.10320535601761,
+            "bandwidth_hz": 104.103205356012,
             "passes_400_hz": true
           }
         ],
@@ -34836,7 +34836,7 @@
             "median_abs_err_hz": 160.65700000000015,
             "rmse_hz": 180.9051379820537
           },
-          "nearest_rejected_bandwidth_median_hz": 610.3084238311735
+          "nearest_rejected_bandwidth_median_hz": 610.3084238311749
         }
       }
     },
@@ -35280,31 +35280,31 @@
           {
             "slot": 1,
             "frequency_hz": 548.637,
-            "bandwidth_hz": 57.37638283850549,
+            "bandwidth_hz": 57.376382838503915,
             "passes_400_hz": true
           },
           {
             "slot": 2,
             "frequency_hz": 1804.729,
-            "bandwidth_hz": 98.20127524447875,
+            "bandwidth_hz": 98.20127524449074,
             "passes_400_hz": true
           },
           {
             "slot": 3,
             "frequency_hz": 2192.782,
-            "bandwidth_hz": 769.6048091732131,
+            "bandwidth_hz": 769.604809173216,
             "passes_400_hz": false
           },
           {
             "slot": 4,
             "frequency_hz": 2507.44,
-            "bandwidth_hz": 135.01565401865395,
+            "bandwidth_hz": 135.01565401865474,
             "passes_400_hz": true
           },
           {
             "slot": 5,
             "frequency_hz": 3509.577,
-            "bandwidth_hz": 85.50835655761621,
+            "bandwidth_hz": 85.5083565576154,
             "passes_400_hz": true
           }
         ],
@@ -35650,31 +35650,31 @@
           {
             "slot": 1,
             "frequency_hz": 718.296,
-            "bandwidth_hz": 52.43801867325412,
+            "bandwidth_hz": 52.43801867324977,
             "passes_400_hz": true
           },
           {
             "slot": 2,
             "frequency_hz": 1209.278,
-            "bandwidth_hz": 53.96862534878213,
+            "bandwidth_hz": 53.96862534878451,
             "passes_400_hz": true
           },
           {
             "slot": 3,
             "frequency_hz": 2113.0,
-            "bandwidth_hz": 667.7278920759242,
+            "bandwidth_hz": 667.7278920758489,
             "passes_400_hz": false
           },
           {
             "slot": 4,
             "frequency_hz": 2646.14,
-            "bandwidth_hz": 114.00857622035736,
+            "bandwidth_hz": 114.00857622034572,
             "passes_400_hz": true
           },
           {
             "slot": 5,
             "frequency_hz": 3517.899,
-            "bandwidth_hz": 64.40195989900279,
+            "bandwidth_hz": 64.40195989899446,
             "passes_400_hz": true
           }
         ],

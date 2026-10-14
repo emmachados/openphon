@@ -144,9 +144,17 @@ fn resample_polyphase(
         let mut acc = 0.0;
         if start >= 0 && start + n_taps as i64 <= n {
             let seg = &samples[start as usize..start as usize + n_taps];
+            // With unity DC gain, y = anchor + sum(w * (x - anchor)).
+            // Summing differences makes a constant segment exact across
+            // phases. Otherwise roundoff survives frame centering and
+            // scale-invariant Burg analysis can fit poles to a silent gap.
+            // This fixed arithmetic identity has no tuned parameter; see
+            // validation/release_resampling_calibration.json for its checks.
+            let anchor = seg[0];
             for i in 0..n_taps {
-                acc += seg[i] * row[i];
+                acc += (seg[i] - anchor) * row[i];
             }
+            acc += anchor;
         } else {
             // Frame straddles the signal edge: skip out-of-range taps,
             // matching the generic path.
@@ -176,15 +184,23 @@ fn resample_generic(
         let j0 = t.floor() as i64;
         let mut acc = 0.0;
         let mut gain = 0.0;
+        // Apply the same constant-preserving identity before normalization.
+        // At file boundaries keep the original zero-padding calculation.
+        let in_bounds = j0 - half_taps + 1 >= 0 && j0 + half_taps < samples.len() as i64;
+        let anchor = if in_bounds { samples[j0 as usize] } else { 0.0 };
         for j in (j0 - half_taps + 1)..=(j0 + half_taps) {
             let weight = resample_kernel(t - j as f64, cutoff, half_taps);
             gain += weight;
             if j < 0 || j >= samples.len() as i64 {
                 continue;
             }
-            acc += samples[j as usize] * weight;
+            acc += (samples[j as usize] - anchor) * weight;
         }
-        out.push(acc / gain);
+        out.push(if in_bounds {
+            anchor + acc / gain
+        } else {
+            acc / gain
+        });
     }
     out
 }
@@ -494,9 +510,9 @@ fn formant_from_root(root: Complex64, sample_rate: f64) -> (f64, f64) {
 
 pub fn track_formants(samples: &[f64], sample_rate: u32, params: &FormantParams) -> FormantTrack {
     let sr_work = 2.0 * params.ceiling_hz;
-    // Remove constant input level before resampling. Even a normalized
-    // polyphase filter has floating-point phase differences: Burg is scale
-    // invariant and would otherwise fit poles to that residual on DC input.
+    // Remove overall constant level before resampling. Anchored subtraction
+    // makes whole-file constant input exactly zero; the resampler also
+    // preserves constant intervals within otherwise varying recordings.
     let anchor = samples.first().copied().unwrap_or(0.0);
     let mut centered: Vec<f64> = samples.iter().map(|s| s - anchor).collect();
     if !centered.is_empty() {
@@ -641,12 +657,64 @@ mod tests {
     }
 
     #[test]
-    fn resampling_has_unity_dc_gain_across_phases() {
-        for sr in [16000, 44100, 48000, 96000, 192000] {
-            let out = resample(&vec![0.375; sr / 10], sr as f64, 11000.0);
-            assert!(out[100..out.len() - 100]
+    fn resampling_preserves_constant_interiors_exactly_across_phases() {
+        // 44,101 Hz exceeds the polyphase table-size limit, exercising the
+        // generic path; 8 kHz also covers interpolation rather than decimation.
+        for sr in [8000, 11000, 16000, 44100, 44101, 48000, 96000, 192000] {
+            for level in [0.375, 0.1, -0.12345678, 1e-12] {
+                let out = resample(&vec![level; sr / 10], sr as f64, 11000.0);
+                assert!(
+                    out[100..out.len() - 100].iter().all(|v| *v == level),
+                    "constant {level} at {sr} samples/s acquired variation"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn resampling_boundaries_retain_zero_padding() {
+        for sr in [16000, 44100, 44101] {
+            let signal = vec![0.375; sr / 50];
+            let original = resample(&signal, sr as f64, 11000.0);
+            // A one-second input shift maps to exactly 11,000 output samples.
+            // Explicit zero padding must reproduce the implicit boundary rule.
+            let mut padded = vec![0.0; sr];
+            padded.extend_from_slice(&signal);
+            padded.resize(padded.len() + sr, 0.0);
+            let reference = resample(&padded, sr as f64, 11000.0);
+            for (a, b) in original.iter().zip(&reference[11000..]) {
+                assert!((a - b).abs() < 1e-10, "boundary at {sr}: {a} vs {b}");
+            }
+            assert!(
+                original[0] < signal[0],
+                "boundary must not extend the constant level"
+            );
+        }
+    }
+
+    #[test]
+    fn silent_interval_after_nonzero_audio_has_no_formant_candidates() {
+        let params = FormantParams {
+            max_bandwidth_hz: f64::INFINITY,
+            ..Default::default()
+        };
+        for sr in [11000, 16000, 44100, 44101, 48000, 96000, 192000] {
+            let mut signal = vec![0.0; sr as usize / 2];
+            signal[sr as usize / 10..sr as usize / 5].fill(0.25);
+            let track = track_formants(&signal, sr, &params);
+            // These frames are wholly in exact zero input, beyond the 25 ms
+            // half-window and less than 3 ms of resampling support. The last
+            // 60 ms of the file are excluded to avoid zero-padding transients.
+            let interior: Vec<_> = track
+                .frames
                 .iter()
-                .all(|v| (v - 0.375).abs() < 1e-13));
+                .filter(|frame| (0.30..=0.44).contains(&frame.time_s))
+                .collect();
+            assert!(!interior.is_empty());
+            assert!(
+                interior.iter().all(|frame| frame.formants_hz.is_empty()),
+                "silent interval at {sr} samples/s produced candidates"
+            );
         }
     }
 
@@ -1001,6 +1069,38 @@ mod tests {
             for (x, y) in a.bandwidths_hz.iter().zip(&b.bandwidths_hz) {
                 assert!((x - y).abs() < 1e-5, "bandwidth {x} vs {y}");
             }
+        }
+    }
+
+    #[test]
+    fn very_quiet_vowel_retains_formant_candidates() {
+        let truth = [(700.0, 80.0), (1220.0, 90.0), (2600.0, 120.0)];
+        let params = FormantParams {
+            max_bandwidth_hz: f64::INFINITY,
+            ..Default::default()
+        };
+        for sr in [44100, 44101] {
+            let signal = synth_vowel(120.0, &truth, sr as f64, 0.5);
+            let quiet: Vec<f64> = signal.iter().map(|value| value * 1e-12).collect();
+            let original = track_formants(&signal, sr, &params);
+            let attenuated = track_formants(&quiet, sr, &params);
+            assert_eq!(original.frames.len(), attenuated.frames.len());
+            let mut compared = 0;
+            for (a, b) in original.frames.iter().zip(&attenuated.frames) {
+                if !(0.1..=0.4).contains(&a.time_s) {
+                    continue;
+                }
+                compared += 1;
+                assert!(a.formants_hz.len() >= 3);
+                assert_eq!(a.formants_hz.len(), b.formants_hz.len());
+                for (x, y) in a.formants_hz.iter().zip(&b.formants_hz) {
+                    assert!((x - y).abs() < 1e-6, "frequency {x} vs {y} at {sr}");
+                }
+                for (x, y) in a.bandwidths_hz.iter().zip(&b.bandwidths_hz) {
+                    assert!((x - y).abs() < 1e-6, "bandwidth {x} vs {y} at {sr}");
+                }
+            }
+            assert!(compared >= 25);
         }
     }
 

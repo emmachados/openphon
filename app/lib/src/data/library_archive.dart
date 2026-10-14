@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
@@ -13,91 +14,188 @@ import 'wav_import.dart';
 
 const libraryArchiveFormat = 'openphon-library';
 const libraryArchiveVersion = 1;
+const _maxManifestBytes = 16 * 1024 * 1024;
 
 Future<String> _sha256(File file) async =>
     (await sha256.bind(file.openRead()).first).toString();
 
+AbstractFileHandle _openArchiveFile(String path, FileAccess mode) =>
+    FileHandle(path, mode: mode);
+
+Future<T> _usingArchiveFile<T>(
+  AbstractFileHandle file,
+  FutureOr<T> Function() action,
+) async {
+  var completed = false;
+  try {
+    final result = await action();
+    completed = true;
+    return result;
+  } finally {
+    try {
+      await file.close();
+    } catch (_) {
+      // A close failure must not hide an earlier read/write/validation error.
+      if (completed) rethrow;
+    }
+  }
+}
+
+/// Save to a user-selected destination without truncating an earlier backup
+/// if copying fails. The temporary file is on the destination filesystem.
+Future<void> publishLibraryArchive({
+  required File source,
+  required File destination,
+}) async {
+  final staging = await destination.parent.createTemp('.openphon_publish_');
+  var failed = false;
+  try {
+    final snapshot = await source.copy(p.join(staging.path, 'library.zip'));
+    await snapshot.rename(destination.path);
+  } catch (_) {
+    failed = true;
+    rethrow;
+  } finally {
+    try {
+      await staging.delete(recursive: true);
+    } catch (_) {
+      if (!failed) rethrow;
+    }
+  }
+}
+
 /// One ZIP carries the complete saved analysis state. Each source is copied
-/// before hashing and archiving so its checksum describes the archived bytes.
+/// before validation, hashing and archiving. Publish only a completed archive;
+/// a failed snapshot must not replace an earlier backup at [output].
 Future<void> writeLibraryArchive({
   required File output,
   required List<BackupItem> items,
   required AnalysisSettings defaultSettings,
   required String softwareVersion,
+  required Future<WavProbe> Function(String path) probeWav,
+  required Future<void> Function(String path) validateTextGrid,
+  required Future<void> Function(String path) validatePitchEdits,
+  AbstractFileHandle Function(String path, FileAccess mode) openArchiveFile =
+      _openArchiveFile,
 }) async {
   final staging = await output.parent.createTemp('.openphon_backup_');
-  final encoder = ZipFileEncoder();
-  var opened = false;
+  final stagedArchive = File(p.join(staging.path, 'library.zip'));
+  var failed = false;
   try {
-    encoder.create(output.path, level: 0);
-    opened = true;
-    final records = <Map<String, Object?>>[];
-    for (var i = 0; i < items.length; i++) {
-      final item = items[i];
-      final r = item.recording;
-      final settings = r.analysisSettingsJson == null
-          ? defaultSettings
-          : AnalysisSettings.fromJson(r.analysisSettingsJson!, strict: true);
-      settings.validate();
-      final files = <String, Object?>{};
-      for (final source in <String, String?>{
-        'wav': item.wavPath,
-        'textgrid': item.gridPath,
-        'pitch_edits': item.editsPath,
-      }.entries) {
-        if (source.value == null) continue;
-        final extension = switch (source.key) {
-          'wav' => '.wav',
-          'textgrid' => '.TextGrid',
-          _ => '.pitchedits.csv',
+    final outputFile = openArchiveFile(stagedArchive.path, FileAccess.write);
+    await _usingArchiveFile(outputFile, () async {
+      final outputStream = OutputFileStream.withFileHandle(outputFile);
+      final encoder = ZipEncoder()..startEncode(outputStream, level: 0);
+      final records = <Map<String, Object?>>[];
+      for (var i = 0; i < items.length; i++) {
+        final item = items[i];
+        final r = item.recording;
+        Object? settings;
+        try {
+          settings = r.analysisSettingsJson == null
+              ? defaultSettings.toMap()
+              : AnalysisSettings.fromJson(
+                  r.analysisSettingsJson!,
+                  strict: true,
+                ).toMap();
+        } catch (error) {
+          throw FormatException(
+            'Invalid analysis settings for ${r.name}: $error',
+          );
+        }
+        final record = <String, dynamic>{
+          'name': r.name,
+          'created': r.createdAt.toUtc().toIso8601String(),
+          'sample_rate_hz': r.sampleRate,
+          'channels': r.channels,
+          'duration_ms': r.durationMs,
+          // Materialise defaults so another installation cannot change them.
+          'analysis_settings': settings,
         };
-        final name = 'recordings/${i + 1}/audio$extension';
-        final snapshot = await File(
-          source.value!,
-        ).copy(p.join(staging.path, 'snapshot$extension'));
-        files[source.key] = {
-          'path': name,
-          'size_bytes': await snapshot.length(),
-          'sha256': await _sha256(snapshot),
-        };
-        await encoder.addFile(snapshot, name, 0);
-        await snapshot.delete();
+        final metadata = _recordingMetadata(record, i);
+        final files = <String, Object?>{};
+        final snapshots = <String, File>{};
+        for (final source in <String, String?>{
+          'wav': item.wavPath,
+          'textgrid': item.gridPath,
+          'pitch_edits': item.editsPath,
+        }.entries) {
+          if (source.value == null) continue;
+          final extension = switch (source.key) {
+            'wav' => '.wav',
+            'textgrid' => '.TextGrid',
+            _ => '.pitchedits.csv',
+          };
+          final name = 'recordings/${i + 1}/audio$extension';
+          late File snapshot;
+          try {
+            snapshot = await File(
+              source.value!,
+            ).copy(p.join(staging.path, 'snapshot$extension'));
+          } catch (error) {
+            throw FileSystemException(
+              'Could not copy ${source.key} for ${r.name}: $error',
+              source.value,
+            );
+          }
+          snapshots[source.key] = snapshot;
+          files[source.key] = {
+            'path': name,
+            'size_bytes': await snapshot.length(),
+            'sha256': await _sha256(snapshot),
+          };
+        }
+        await _validateRecordingContents(
+          metadata: metadata,
+          files: snapshots,
+          probeWav: probeWav,
+          validateTextGrid: validateTextGrid,
+          validatePitchEdits: validatePitchEdits,
+        );
+        for (final snapshot in snapshots.entries) {
+          final name =
+              (files[snapshot.key] as Map<String, Object?>)['path']! as String;
+          final inputFile = openArchiveFile(
+            snapshot.value.path,
+            FileAccess.read,
+          );
+          await _usingArchiveFile(inputFile, () {
+            final inputStream = InputFileStream.withFileHandle(inputFile);
+            final entry = ArchiveFile.stream(name, inputStream)
+              ..compression = CompressionType.none;
+            encoder.add(entry, autoClose: false);
+          });
+          await snapshot.value.delete();
+        }
+        records.add({...record, 'files': files});
       }
-      records.add({
-        'name': r.name,
-        'created': r.createdAt.toUtc().toIso8601String(),
-        'sample_rate_hz': r.sampleRate,
-        'channels': r.channels,
-        'duration_ms': r.durationMs,
-        // Materialise app defaults so restoring into another installation
-        // cannot change the settings of previously unconfigured recordings.
-        'analysis_settings': settings.toMap(),
-        'files': files,
+      final manifest = const JsonEncoder.withIndent('  ').convert({
+        'format': libraryArchiveFormat,
+        'version': libraryArchiveVersion,
+        'software_version': softwareVersion,
+        'created': DateTime.now().toUtc().toIso8601String(),
+        'recordings': records,
       });
-    }
-    encoder.addArchiveFile(
-      ArchiveFile.string(
-        'manifest.json',
-        const JsonEncoder.withIndent('  ').convert({
-          'format': libraryArchiveFormat,
-          'version': libraryArchiveVersion,
-          'software_version': softwareVersion,
-          'created': DateTime.now().toUtc().toIso8601String(),
-          'recordings': records,
-        }),
-      ),
-    );
-    await encoder.close();
-    opened = false;
+      if (utf8.encode(manifest).length > _maxManifestBytes) {
+        throw const FormatException(
+          'The library backup manifest exceeds 16 MiB.',
+        );
+      }
+      encoder.add(ArchiveFile.string('manifest.json', manifest));
+      // Finalization flushes buffered bytes. Close the raw output handle even
+      // when finalization/flush fails; do not retry a partially written ZIP.
+      encoder.endEncode();
+    });
+    await stagedArchive.rename(output.path);
   } catch (_) {
-    if (opened) {
-      await encoder.close();
-      opened = false;
-    }
-    if (await output.exists()) await output.delete();
+    failed = true;
     rethrow;
   } finally {
-    await staging.delete(recursive: true);
+    try {
+      await staging.delete(recursive: true);
+    } catch (_) {
+      if (!failed) rethrow;
+    }
   }
 }
 
@@ -157,6 +255,95 @@ AnalysisSettings _settings(Object? value) {
   return AnalysisSettings.fromJson(jsonEncode(map), strict: true);
 }
 
+typedef _RecordingMetadata = ({
+  String name,
+  DateTime createdAt,
+  int sampleRate,
+  int channels,
+  int? durationMs,
+  AnalysisSettings settings,
+});
+
+// Both creation and restore use these checks, so a valid checksum cannot hide
+// content or metadata which the same application would refuse to restore.
+_RecordingMetadata _recordingMetadata(Map<String, dynamic> record, int index) {
+  final name = record['name'];
+  final created = record['created'];
+  final rate = record['sample_rate_hz'];
+  final channels = record['channels'];
+  final duration = record['duration_ms'];
+  if (name is! String ||
+      created is! String ||
+      DateTime.tryParse(created) == null ||
+      !DateTime.parse(created).isUtc ||
+      rate is! int ||
+      rate <= 0 ||
+      channels is! int ||
+      channels <= 0 ||
+      (duration != null && (duration is! int || duration < 0))) {
+    throw FormatException(
+      'Invalid recording metadata for ${name is String ? name : 'entry ${index + 1}'}.',
+    );
+  }
+  late AnalysisSettings settings;
+  try {
+    settings = _settings(record['analysis_settings']);
+  } catch (error) {
+    throw FormatException('Invalid analysis settings for $name: $error');
+  }
+  return (
+    name: name,
+    createdAt: DateTime.parse(created),
+    sampleRate: rate,
+    channels: channels,
+    durationMs: duration as int?,
+    settings: settings,
+  );
+}
+
+Future<void> _validateRecordingContents({
+  required _RecordingMetadata metadata,
+  required Map<String, File> files,
+  required Future<WavProbe> Function(String path) probeWav,
+  required Future<void> Function(String path) validateTextGrid,
+  required Future<void> Function(String path) validatePitchEdits,
+}) async {
+  final name = metadata.name;
+  late WavProbe actual;
+  try {
+    actual = await probeWav(files['wav']!.path);
+  } catch (error) {
+    throw FormatException('Invalid WAV for $name: $error');
+  }
+  if (!actual.durationS.isFinite ||
+      actual.durationS < 0 ||
+      actual.sampleRate != metadata.sampleRate ||
+      actual.channels != metadata.channels ||
+      (metadata.durationMs != null &&
+          ((actual.durationS * 1000).round() - metadata.durationMs!).abs() >
+              1)) {
+    throw FormatException(
+      'Audio metadata does not match the backup for $name.',
+    );
+  }
+  final grid = files['textgrid'];
+  final pitch = files['pitch_edits'];
+  if (grid != null) {
+    try {
+      await validateTextGrid(grid.path);
+    } catch (error) {
+      throw FormatException('Invalid TextGrid for $name: $error');
+    }
+  }
+  if (pitch != null) {
+    try {
+      await validatePitchEdits(pitch.path);
+    } catch (error) {
+      throw FormatException('Invalid pitch corrections for $name: $error');
+    }
+  }
+}
+
 /// Extract into temporary storage, reject unexpected paths and links, verify
 /// all checksums, and probe every audio/annotation file before library writes.
 Future<ValidatedLibraryArchive> validateLibraryArchive({
@@ -191,7 +378,7 @@ Future<ValidatedLibraryArchive> validateLibraryArchive({
       entries[name] = entry;
     }
     final manifestEntry = entries.remove('manifest.json');
-    if (manifestEntry == null || manifestEntry.size > 16 * 1024 * 1024) {
+    if (manifestEntry == null || manifestEntry.size > _maxManifestBytes) {
       throw const FormatException('This is not an openphon library backup.');
     }
     final manifest = _map(
@@ -211,23 +398,8 @@ Future<ValidatedLibraryArchive> validateLibraryArchive({
     final restored = <RestorableRecording>[];
     for (var i = 0; i < records.length; i++) {
       final record = _map(records[i], 'recording');
-      final name = record['name'];
-      final created = record['created'];
-      final rate = record['sample_rate_hz'];
-      final channels = record['channels'];
-      final duration = record['duration_ms'];
-      if (name is! String ||
-          created is! String ||
-          DateTime.tryParse(created) == null ||
-          !DateTime.parse(created).isUtc ||
-          rate is! int ||
-          rate <= 0 ||
-          channels is! int ||
-          channels <= 0 ||
-          (duration != null && (duration is! int || duration < 0))) {
-        throw FormatException('Invalid recording metadata at entry ${i + 1}.');
-      }
-      final settings = _settings(record['analysis_settings']);
+      final metadata = _recordingMetadata(record, i);
+      final name = metadata.name;
       final files = _map(record['files'], 'recording files');
       if (!files.containsKey('wav') ||
           files.keys.any(
@@ -277,28 +449,23 @@ Future<ValidatedLibraryArchive> validateLibraryArchive({
         extracted[file.key] = target;
       }
       final wav = extracted['wav']!;
-      final actual = await probeWav(wav.path);
-      if (actual.sampleRate != rate ||
-          actual.channels != channels ||
-          (duration != null &&
-              ((actual.durationS * 1000).round() - (duration as int)).abs() >
-                  1)) {
-        throw FormatException(
-          'Audio metadata does not match the backup for $name.',
-        );
-      }
       final grid = extracted['textgrid'];
       final pitch = extracted['pitch_edits'];
-      if (grid != null) await validateTextGrid(grid.path);
-      if (pitch != null) await validatePitchEdits(pitch.path);
+      await _validateRecordingContents(
+        metadata: metadata,
+        files: extracted,
+        probeWav: probeWav,
+        validateTextGrid: validateTextGrid,
+        validatePitchEdits: validatePitchEdits,
+      );
       restored.add(
         RestorableRecording(
           name: name,
-          createdAt: DateTime.parse(created),
-          sampleRate: rate,
-          channels: channels,
-          durationMs: duration as int?,
-          settings: settings,
+          createdAt: metadata.createdAt,
+          sampleRate: metadata.sampleRate,
+          channels: metadata.channels,
+          durationMs: metadata.durationMs,
+          settings: metadata.settings,
           wav: wav,
           textGrid: grid,
           pitchEdits: pitch,

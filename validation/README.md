@@ -83,6 +83,14 @@ includes an explicitly conservative rejection control; the
 [calibration record](release_root_calibration.json) shows unchanged benchmark
 scores and coverage after fixed checks and one evaluation run. Correction of
 these operations does not imply general resonance-estimation improvement.
+Revision 4 preserves exact constants inside the resampling kernel by
+accumulating differences from a local sample. Recording-edge zero extension
+is unchanged. The [native invariant checks](release_resampling_invariants.json)
+cover silent gaps, constant regions and low-amplitude signals; the
+[calibration record](release_resampling_calibration.json) retains the fixed
+decision and comparison with revision 3. Reproduce the native checks with
+`python resampling_check.py --out release_resampling_invariants.json` after
+building the release core.
 Develop candidates with `python release_check.py --split calib --out calibration.json`.
 Only the selected subset is copied for reference generation and scoring;
 all manifest hashes and the full speaker partition are still verified.
@@ -194,6 +202,9 @@ labelled-error regressions without missing estimates; the selector remains
 experimental. Its [report](release_temporal_formant_challenge.json) retains
 frame traces and exact ablation differences. Both experiment commands return
 success for a completed negative result; missing data or changed sources fail.
+The retained temporal reports use revision 3 at commit `f463995`. Revision 4
+corrects the silent-gap residue; use separate output names when running those
+experiments on current source, because the historical gap counts differ.
 `.github/workflows/validation.yml` runs core and CLI tests, synthetic,
 voice-quality and spectral checks, and the isolated public release check.
 The application build and integration workflow is separate, at

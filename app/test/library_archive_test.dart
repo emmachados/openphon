@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:archive/archive_io.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openphon/src/analysis/analysis_settings.dart';
@@ -22,6 +24,53 @@ class _FailingDatabase extends AppDatabase {
   }
 }
 
+class _FailingCopyFile implements File {
+  @override
+  Future<File> copy(String newPath) async {
+    await File(newPath).writeAsString('incomplete replacement');
+    throw const FileSystemException('simulated copy failure');
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FaultyFileHandle extends FileHandle {
+  _FaultyFileHandle(
+    super.path, {
+    required super.mode,
+    this.failRead = false,
+    this.failWrite = false,
+    this.failClose = false,
+  });
+
+  final bool failRead;
+  final bool failWrite;
+  final bool failClose;
+  int closeCalls = 0;
+  int writeCalls = 0;
+
+  @override
+  int readInto(Uint8List buffer, [int? length]) {
+    if (failRead) throw const FileSystemException('simulated read failure');
+    return super.readInto(buffer, length);
+  }
+
+  @override
+  void writeFromSync(List<int> buffer, [int start = 0, int? end]) {
+    writeCalls++;
+    if (failWrite) throw const FileSystemException('simulated write failure');
+    super.writeFromSync(buffer, start, end);
+  }
+
+  @override
+  Future<void> close() async {
+    closeCalls++;
+    await super.close();
+    if (failClose) throw const FileSystemException('simulated close failure');
+  }
+}
+
 void main() {
   late Directory tmp;
   late File backup;
@@ -29,15 +78,42 @@ void main() {
   const settings = AnalysisSettings(pitchFloorHz: 150, pitchCeilingHz: 450);
   final created = DateTime.utc(2026, 3, 4, 5, 6);
 
+  Future<WavProbe> probeWav(String path) async {
+    if (await File(path).readAsString() != 'WAV bytes') {
+      throw const FormatException('Unrecognised WAV.');
+    }
+    return const WavProbe(sampleRate: 48000, channels: 1, durationS: 1);
+  }
+
+  Future<void> validateTextGrid(String path) async {
+    if (await File(path).readAsString() != 'TextGrid bytes') {
+      throw const FormatException('Unrecognised TextGrid.');
+    }
+  }
+
+  Future<void> validatePitchEdits(String path) async {
+    if (await File(path).readAsString() != 'pitch correction bytes') {
+      throw const FormatException('Unrecognised pitch corrections.');
+    }
+  }
+
+  Future<void> create({File? output, List<BackupItem>? sourceItems}) =>
+      writeLibraryArchive(
+        output: output ?? backup,
+        items: sourceItems ?? items,
+        defaultSettings: const AnalysisSettings(formantCeilingHz: 5000),
+        softwareVersion: '0.1.0+4',
+        probeWav: probeWav,
+        validateTextGrid: validateTextGrid,
+        validatePitchEdits: validatePitchEdits,
+      );
+
   Future<ValidatedLibraryArchive> validate() => validateLibraryArchive(
     input: backup,
     temporaryDirectory: tmp,
-    probeWav: (_) async =>
-        const WavProbe(sampleRate: 48000, channels: 1, durationS: 1),
-    validateTextGrid: (path) async =>
-        expect(await File(path).readAsString(), 'TextGrid bytes'),
-    validatePitchEdits: (path) async =>
-        expect(await File(path).readAsString(), 'pitch correction bytes'),
+    probeWav: probeWav,
+    validateTextGrid: validateTextGrid,
+    validatePitchEdits: validatePitchEdits,
   );
 
   Future<void> rewrite(void Function(Archive archive) edit) async {
@@ -87,15 +163,190 @@ void main() {
         stem: 'other',
       ),
     ];
-    await writeLibraryArchive(
-      output: backup,
-      items: items,
-      defaultSettings: const AnalysisSettings(formantCeilingHz: 5000),
-      softwareVersion: '0.1.0+4',
-    );
+    await create();
   });
 
   tearDown(() async => tmp.delete(recursive: true));
+
+  test(
+    'desktop publication preserves an earlier backup after a partial copy',
+    () async {
+      final original = await backup.readAsBytes();
+      await expectLater(
+        publishLibraryArchive(source: _FailingCopyFile(), destination: backup),
+        throwsA(
+          isA<FileSystemException>().having(
+            (error) => error.message,
+            'message',
+            'simulated copy failure',
+          ),
+        ),
+      );
+      expect(await backup.readAsBytes(), original);
+      expect(tmp.listSync().whereType<Directory>(), isEmpty);
+      final replacement = await File(
+        '${tmp.path}/replacement.zip',
+      ).writeAsString('complete replacement');
+      await publishLibraryArchive(source: replacement, destination: backup);
+      expect(await backup.readAsString(), 'complete replacement');
+      expect(await replacement.readAsString(), 'complete replacement');
+      expect(tmp.listSync().whereType<Directory>(), isEmpty);
+    },
+  );
+
+  for (final failure in ['read', 'write', 'close']) {
+    test(
+      'archive $failure failure closes handles and preserves the original error and backup',
+      () async {
+        final original = await backup.readAsBytes();
+        final handles = <_FaultyFileHandle>[];
+        await expectLater(
+          writeLibraryArchive(
+            output: backup,
+            items: [items.first],
+            defaultSettings: const AnalysisSettings(),
+            softwareVersion: 'test',
+            probeWav: probeWav,
+            validateTextGrid: validateTextGrid,
+            validatePitchEdits: validatePitchEdits,
+            openArchiveFile: (path, mode) {
+              final handle = _FaultyFileHandle(
+                path,
+                mode: mode,
+                failRead: mode == FileAccess.read && failure == 'read',
+                failWrite: mode == FileAccess.write && failure == 'write',
+                // A second failure during cleanup must not replace read/write.
+                failClose: mode == FileAccess.write || failure == 'read',
+              );
+              handles.add(handle);
+              return handle;
+            },
+          ),
+          throwsA(
+            isA<FileSystemException>().having(
+              (error) => error.message,
+              'message',
+              'simulated $failure failure',
+            ),
+          ),
+        );
+        expect(handles, hasLength(greaterThanOrEqualTo(2)));
+        expect(handles.every((handle) => !handle.isOpen), isTrue);
+        expect(handles.every((handle) => handle.closeCalls == 1), isTrue);
+        if (failure == 'write') expect(handles.first.writeCalls, 1);
+        expect(await backup.readAsBytes(), original);
+        expect(tmp.listSync().whereType<Directory>(), isEmpty);
+      },
+    );
+  }
+
+  for (final content in ['WAV', 'TextGrid', 'pitch corrections']) {
+    test(
+      'invalid $content prevents publishing and preserves an earlier backup',
+      () async {
+        final original = await backup.readAsBytes();
+        final source = switch (content) {
+          'WAV' => items.first.wavPath,
+          'TextGrid' => items.first.gridPath!,
+          _ => items.first.editsPath!,
+        };
+        await File(source).writeAsString('malformed');
+        final failure = throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'recording-specific error',
+            contains('Invalid $content for name, with / symbols:'),
+          ),
+        );
+        await expectLater(create(), failure);
+        expect(await backup.readAsBytes(), original);
+        final fresh = File('${tmp.path}/fresh.zip');
+        await expectLater(create(output: fresh), failure);
+        expect(await fresh.exists(), isFalse);
+        expect(tmp.listSync().whereType<Directory>(), isEmpty);
+      },
+    );
+  }
+
+  test(
+    'metadata mismatch in a later recording rejects the complete new backup',
+    () async {
+      final original = await backup.readAsBytes();
+      for (final recording in [
+        items.last.recording.copyWith(sampleRate: 16000),
+        items.last.recording.copyWith(channels: 2),
+        items.last.recording.copyWith(durationMs: const Value(2000)),
+      ]) {
+        final invalid = BackupItem(
+          recording: recording,
+          wavPath: items.last.wavPath,
+          stem: 'defaults',
+        );
+        await expectLater(
+          create(sourceItems: [items.first, invalid]),
+          throwsA(
+            isA<FormatException>().having(
+              (error) => error.message,
+              'message',
+              'Audio metadata does not match the backup for defaults.',
+            ),
+          ),
+        );
+        expect(await backup.readAsBytes(), original);
+        expect(tmp.listSync().whereType<Directory>(), isEmpty);
+      }
+    },
+  );
+
+  test(
+    'invalid stored settings identify the recording before publishing',
+    () async {
+      final original = await backup.readAsBytes();
+      final invalid = BackupItem(
+        recording: items.first.recording.copyWith(
+          analysisSettingsJson: const Value('{"pitchFloorHz":-1}'),
+        ),
+        wavPath: items.first.wavPath,
+        stem: 'invalid',
+      );
+      await expectLater(
+        create(sourceItems: [invalid]),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            contains('Invalid analysis settings for name, with / symbols:'),
+          ),
+        ),
+      );
+      expect(await backup.readAsBytes(), original);
+    },
+  );
+
+  test('validation and archived bytes use the staged snapshot', () async {
+    final source = items.first.wavPath;
+    await writeLibraryArchive(
+      output: backup,
+      items: [items.first],
+      defaultSettings: const AnalysisSettings(),
+      softwareVersion: 'test',
+      probeWav: (path) async {
+        expect(path, isNot(source));
+        expect(path, contains('.openphon_backup_'));
+        await File(source).writeAsString('changed after snapshot');
+        return probeWav(path);
+      },
+      validateTextGrid: validateTextGrid,
+      validatePitchEdits: validatePitchEdits,
+    );
+    final validated = await validate();
+    try {
+      expect(await validated.recordings.single.wav.readAsString(), 'WAV bytes');
+      expect(await File(source).readAsString(), 'changed after snapshot');
+    } finally {
+      await validated.dispose();
+    }
+  });
 
   test(
     'backup restores settings, names, dates, and sidecars without overwriting',
@@ -137,7 +388,7 @@ void main() {
         expect(await existing.readAsString(), 'original');
         final restored = rows.where((r) => r.relativePath != 'existing.wav');
         for (final r in restored) {
-        expect(r.createdAt.isAtSameMomentAs(created), isTrue);
+          expect(r.createdAt.isAtSameMomentAs(created), isTrue);
           final s = AnalysisSettings.fromJson(r.analysisSettingsJson!);
           if (r.name == 'defaults') {
             expect(s.formantCeilingHz, 5000);

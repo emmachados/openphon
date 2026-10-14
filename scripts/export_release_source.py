@@ -28,6 +28,8 @@ VALIDATION = {
     "formant_diagnosis.py", "test_formant_diagnosis.py", "release_formant_diagnosis.json",
     "release_formant_calibration.json",
     "release_resampling_check.json",
+    "resampling_check.py", "test_resampling_check.py", "release_resampling_invariants.json",
+    "release_resampling_calibration.json",
     "root_solver_check.py", "test_root_solver_check.py", "release_root_solver_check.json",
     "release_root_calibration.json",
     "formant_transitions.py", "test_formant_transitions.py",

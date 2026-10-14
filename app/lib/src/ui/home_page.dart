@@ -695,6 +695,20 @@ class _HomePageState extends State<HomePage> {
           defaultSettings:
               widget.prefs.defaultAnalysisSettings ?? const AnalysisSettings(),
           softwareVersion: await loadAppVersion(),
+          probeWav: (wav) async {
+            final info = await rust_core.wavInfo(path: wav);
+            return WavProbe(
+              sampleRate: info.sampleRate,
+              channels: info.channels,
+              durationS: info.durationS,
+            );
+          },
+          validateTextGrid: (path) async {
+            await rust_core.readTextGrid(path: path);
+          },
+          validatePitchEdits: (path) async {
+            rust_core.parsePitchEdits(text: await File(path).readAsString());
+          },
         );
         return output;
       });
@@ -711,7 +725,10 @@ class _HomePageState extends State<HomePage> {
           ],
         );
         if (location == null || !mounted) return;
-        await archive.copy(location.path);
+        await publishLibraryArchive(
+          source: archive,
+          destination: File(location.path),
+        );
         _snack(l10n.backupDone(recordings.length));
       }
     } catch (e) {

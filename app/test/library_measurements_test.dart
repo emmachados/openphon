@@ -189,7 +189,7 @@ void main() {
         'pre_emphasis_hz': 50.0,
         'max_bandwidth_hz': 400.0,
       });
-      expect(formants['algorithm_revision'], 3);
+      expect(formants['algorithm_revision'], 4);
       expect(formants['root_solver']['maximum_iterations'], 200);
       expect(formants['root_solver']['relative_step_tolerance'], 1e-12);
       expect(
@@ -218,6 +218,14 @@ void main() {
         'unit_sum_full_kernel_per_output_phase',
       );
       expect(resampling['boundary_extension'], 'zero');
+      expect(
+        resampling['interior_accumulation'],
+        'local_anchor_plus_weighted_sample_differences',
+      );
+      expect(
+        resampling['boundary_accumulation'],
+        'weighted_samples_with_zero_extension',
+      );
       expect(resampling['equal_sample_rates'], 'bypass');
       expect(
         formants['frame_preprocessing']['dc_removal'],

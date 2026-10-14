@@ -18,6 +18,23 @@ import 'package:path/path.dart' as p;
 
 import 'bridge_test.dart' show sineWav;
 
+Future<WavProbe> _probeArchiveWav(String path) async {
+  final info = await rust.wavInfo(path: path);
+  return WavProbe(
+    sampleRate: info.sampleRate,
+    channels: info.channels,
+    durationS: info.durationS,
+  );
+}
+
+Future<void> _validateArchiveTextGrid(String path) async {
+  await rust.readTextGrid(path: path);
+}
+
+Future<void> _validateArchivePitchEdits(String path) async {
+  rust.parsePitchEdits(text: await File(path).readAsString());
+}
+
 Future<String> _measure(String wav, AnalysisSettings settings) async {
   final automatic = await rust.f0Track(
     path: wav,
@@ -147,24 +164,16 @@ void main() {
         ],
         defaultSettings: const AnalysisSettings(),
         softwareVersion: 'integration-test',
+        probeWav: _probeArchiveWav,
+        validateTextGrid: _validateArchiveTextGrid,
+        validatePitchEdits: _validateArchivePitchEdits,
       );
       final validated = await validateLibraryArchive(
         input: backup,
         temporaryDirectory: directory,
-        probeWav: (path) async {
-          final info = await rust.wavInfo(path: path);
-          return WavProbe(
-            sampleRate: info.sampleRate,
-            channels: info.channels,
-            durationS: info.durationS,
-          );
-        },
-        validateTextGrid: (path) async {
-          await rust.readTextGrid(path: path);
-        },
-        validatePitchEdits: (path) async {
-          rust.parsePitchEdits(text: await File(path).readAsString());
-        },
+        probeWav: _probeArchiveWav,
+        validateTextGrid: _validateArchiveTextGrid,
+        validatePitchEdits: _validateArchivePitchEdits,
       );
       addTearDown(validated.dispose);
       final library = await Directory(
@@ -201,6 +210,73 @@ void main() {
         await File(rust.pitchEditsPath(wavPath: restoredWav)).readAsBytes(),
         await File(rust.pitchEditsPath(wavPath: wav.path)).readAsBytes(),
       );
+    },
+  );
+
+  testWidgets(
+    'native backup validation rejects malformed sources before publishing',
+    (tester) async {
+      final directory = await Directory.systemTemp.createTemp(
+        'openphon_native_backup_validation_',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final wav = File(p.join(directory.path, 'source.wav'));
+      final grid = File(p.join(directory.path, 'source.TextGrid'));
+      final pitch = File(p.join(directory.path, 'source.pitchedits.csv'));
+      final backup = File(p.join(directory.path, 'existing.zip'));
+      for (final problem in [
+        'WAV',
+        'TextGrid',
+        'pitch corrections',
+        'metadata',
+      ]) {
+        await wav.writeAsBytes(
+          sineWav(freqHz: 220, sampleRate: 16000, seconds: 1),
+        );
+        if (problem == 'WAV') await wav.writeAsString('not a WAV');
+        if (problem == 'TextGrid') await grid.writeAsString('not a TextGrid');
+        if (problem == 'pitch corrections') {
+          await pitch.writeAsString('not pitch corrections');
+        }
+        await backup.writeAsString('preserve earlier backup');
+        final recording = Recording(
+          id: 1,
+          name: 'Rejected $problem',
+          relativePath: 'source.wav',
+          createdAt: DateTime.utc(2026),
+          sampleRate: problem == 'metadata' ? 48000 : 16000,
+          channels: 1,
+          durationMs: 1000,
+        );
+        await expectLater(
+          writeLibraryArchive(
+            output: backup,
+            items: [
+              BackupItem(
+                recording: recording,
+                wavPath: wav.path,
+                gridPath: problem == 'TextGrid' ? grid.path : null,
+                editsPath: problem == 'pitch corrections' ? pitch.path : null,
+                stem: 'source',
+              ),
+            ],
+            defaultSettings: const AnalysisSettings(),
+            softwareVersion: 'integration-test',
+            probeWav: _probeArchiveWav,
+            validateTextGrid: _validateArchiveTextGrid,
+            validatePitchEdits: _validateArchivePitchEdits,
+          ),
+          throwsA(
+            isA<FormatException>().having(
+              (error) => error.message,
+              'recording-specific validation error',
+              contains(recording.name),
+            ),
+          ),
+        );
+        expect(await backup.readAsString(), 'preserve earlier backup');
+        expect(directory.listSync().whereType<Directory>(), isEmpty);
+      }
     },
   );
 }

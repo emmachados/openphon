@@ -919,13 +919,13 @@
     }
   ],
   "passed": true,
-  "generated_at_utc": "2026-10-14T08:20:39.673645+00:00",
+  "generated_at_utc": "2026-10-14T09:14:32.253386+00:00",
   "purpose": "Numerical acceptance on fixed polynomials, not speech or formant-identity accuracy",
   "limitations": "Coefficient rounding changes clustered roots; backward error does not bound forward error. Wider low-frequency and repeated-pair cases are descriptive controls, not acceptance targets.",
   "resonance_construction": "Conjugate pairs at sample rate 11000 Hz, radius exp(-pi*bandwidth/11000). Real polynomial coefficients are multiplied in f64; intended roots are retained separately.",
   "source_sha256": {
     "baseline": "d17a9f543f3314f0af65fb42c75f38785985bbf5d417fa7b7f93536c2cdb3229",
-    "candidate": "06cc90ad97904920369b2ba882bf8da79aac1671f0de10b011accfe380ddf1c7",
+    "candidate": "fe1d500f743cb6bf0be5308b1cbbcbe5c35193705077d11290e553a0cfce05c9",
     "baseline_root_source": "d17a9f543f3314f0af65fb42c75f38785985bbf5d417fa7b7f93536c2cdb3229",
     "baseline_original_full_source": "e72a7a760848e7198e43cb0e2b3da2c908585e107821c001f3ec5b277c01d724",
     "driver": "c5a9784c57e41abf6f9327769a9db52f07b1439a6a19c4cd66dece4e08935954",
@@ -938,13 +938,13 @@
     "rustc",
     "--edition=2021",
     "-O",
-    "/var/folders/7w/11b1bt3x5pl3pndj0sdw5fh00000gn/T/openphon-root-proof-bw6q2ybc/main.rs",
+    "/var/folders/7w/11b1bt3x5pl3pndj0sdw5fh00000gn/T/openphon-root-proof-60fp9wdz/main.rs",
     "--extern",
     "rustfft=/Users/emma/Projects/openphon-release/core/target/release/deps/librustfft-c357a3016041f804.rlib",
     "-L",
     "dependency=/Users/emma/Projects/openphon-release/core/target/release/deps",
     "-o",
-    "/var/folders/7w/11b1bt3x5pl3pndj0sdw5fh00000gn/T/openphon-root-proof-bw6q2ybc/root-proof"
+    "/var/folders/7w/11b1bt3x5pl3pndj0sdw5fh00000gn/T/openphon-root-proof-60fp9wdz/root-proof"
   ],
-  "artifact_directory": "/var/folders/7w/11b1bt3x5pl3pndj0sdw5fh00000gn/T/openphon-root-proof-bw6q2ybc"
+  "artifact_directory": "/var/folders/7w/11b1bt3x5pl3pndj0sdw5fh00000gn/T/openphon-root-proof-60fp9wdz"
 }

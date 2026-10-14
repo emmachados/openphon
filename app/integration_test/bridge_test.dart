@@ -74,6 +74,46 @@ void main() {
     expect(formants.bandwidthsHz.every((value) => value == 0), isTrue);
   });
 
+  testWidgets('Silent gaps remain without formants after native resampling', (
+    tester,
+  ) async {
+    final dir = await Directory.systemTemp.createTemp('openphon_gap_test');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}${Platform.pathSeparator}gap.wav');
+    const sampleRate = 44100;
+    final bytes = sineWav(freqHz: 0, sampleRate: sampleRate, seconds: 1);
+    final samples = ByteData.sublistView(bytes);
+    // A positive pulse gives the whole recording a nonzero mean. Subtracting
+    // that mean makes the following exact silence a nonzero constant.
+    for (var i = 0; i < sampleRate ~/ 10; i++) {
+      samples.setInt16(44 + 2 * i, 4096, Endian.little);
+    }
+    await file.writeAsBytes(bytes);
+    final track = await rust_core.formantTrack(
+      path: file.path,
+      timeStepS: 0.01,
+      maxFormants: 5,
+      ceilingHz: 5500,
+    );
+    var checked = 0;
+    for (var frame = 0; frame < track.timesS.length; frame++) {
+      final time = track.timesS[frame];
+      // Keep the full analysis window and resampling kernel away from the
+      // pulse and recording boundaries.
+      if (time < 0.2 || time > 0.8) continue;
+      expect(
+        track.formantsHz.sublist(frame * 5, (frame + 1) * 5),
+        everyElement(0),
+      );
+      expect(
+        track.bandwidthsHz.sublist(frame * 5, (frame + 1) * 5),
+        everyElement(0),
+      );
+      checked++;
+    }
+    expect(checked, greaterThan(50));
+  });
+
   testWidgets('DSP analyses run over the bridge on a real file', (
     tester,
   ) async {
