@@ -519,12 +519,11 @@ fn frame_spans(
     n_in: usize,
     sr_in: u32,
     n_work: usize,
-    sr_work: f64,
     win_n: usize,
     hop: usize,
-    min_len: usize,
     params: &FormantParams,
 ) -> Vec<(usize, usize, f64)> {
+    let sr_work = 2.0 * params.ceiling_hz;
     if !params.praat_grid {
         let mut spans = Vec::new();
         let mut start = 0usize;
@@ -537,6 +536,13 @@ fn frame_spans(
     // Praat's Sampled_shortTermAnalysis on the resampled sound: frames counted
     // over its duration, grid centred on the original signal. The resampler
     // aligns output sample 0 with input sample 0.
+    // Praat reads a time step of zero as a quarter of the effective window.
+    let step = if params.time_step_s.is_finite() && params.time_step_s > 0.0 {
+        params.time_step_s
+    } else {
+        0.25 * params.window_s
+    };
+    let min_len = 2 * params.max_formants;
     let dx = 1.0 / sr_work;
     let original = n_in as f64 / sr_in as f64;
     let x1 = 0.5 / sr_in as f64;
@@ -545,11 +551,11 @@ fn frame_spans(
     if duration < physical {
         return Vec::new();
     }
-    let n_frames = ((duration - physical) / params.time_step_s).floor() as usize + 1;
-    let first = 0.5 * original - 0.5 * (n_frames as f64 * params.time_step_s) + 0.5 * params.time_step_s;
+    let n_frames = ((duration - physical) / step).floor() as usize + 1;
+    let first = 0.5 * original - 0.5 * (n_frames as f64 * step) + 0.5 * step;
     (0..n_frames)
         .filter_map(|i| {
-            let t = first + i as f64 * params.time_step_s;
+            let t = first + i as f64 * step;
             let left = ((t - x1) / dx).floor() as isize;
             let start = (left + 1 - (win_n / 2) as isize).max(0);
             let end = (left + 1 + (win_n / 2) as isize).min(n_work as isize);
@@ -581,7 +587,7 @@ pub fn track_formants(samples: &[f64], sample_rate: u32, params: &FormantParams)
     let order = 2 * params.max_formants;
     let window = gaussian_window(win_n);
 
-    let spans = frame_spans(samples.len(), sample_rate, source.len(), sr_work, win_n, hop, order, params);
+    let spans = frame_spans(samples.len(), sample_rate, source.len(), win_n, hop, params);
     let mut frames = Vec::new();
     for (start, len, time_s) in spans {
         // Center before windowing: windowing a constant creates a nonconstant
@@ -1195,6 +1201,19 @@ mod tests {
                 assert!((frame.time_s - (first + i as f64 * 0.00625)).abs() < 1e-9);
             }
         }
+    }
+
+    #[test]
+    fn praat_grid_reads_a_zero_step_as_praat_does() {
+        let params = FormantParams {
+            time_step_s: 0.0,
+            praat_grid: true,
+            ..Default::default()
+        };
+        let signal: Vec<f64> = (0..192000).map(|i| ((i * 7919) % 1013) as f64 / 1013.0 - 0.5).collect();
+        let track = track_formants(&signal, 48000, &params);
+        assert_eq!(track.frames.len(), 632);
+        assert!((track.frames[0].time_s - 0.028125).abs() < 1e-9);
     }
 
     #[test]
