@@ -1,9 +1,9 @@
 {
-  "generated_at_utc": "2026-10-14T09:12:44.674401+00:00",
+  "generated_at_utc": "2026-10-26T16:44:20.619964+00:00",
   "purpose": "Exact constant preservation, silent-gap rejection and quiet-signal numerical invariance",
   "scope": "Fresh synthetic inputs only; no public or private speech and no formant-accuracy claim",
   "source_sha256": {
-    "core/src/formant.rs": "fe1d500f743cb6bf0be5308b1cbbcbe5c35193705077d11290e553a0cfce05c9",
+    "core/src/formant.rs": "9623adfcd910cb52c4fa93b176be433b6cbae2f4e5f0daf119acf54449cbeef4",
     "core/src/intensity.rs": "ff0e7ab9d5992cf3947e7697eee36813ec17b259baa9c34c62c2c974e967511d",
     "core/src/lib.rs": "16560bc4cc408f424bea29f428d406439c5cbcfbde940affe3d7987d6a07685f",
     "core/src/pitch.rs": "053dc590515775077262bfcca3ec15d12bc71d4dd1501294fe0c02ac95cdbbf5",
@@ -22,12 +22,12 @@
     "validation/synthesize.py": "307efc4dd6e0f77d94978de01988a7eac266f00ec55c9b116e7d8aaed56ad739"
   },
   "driver_sha256": "3549aabe3f5e464904b9dc8e22a7531219a69ab34aafc11aa9ca5dea8328ea02",
-  "native_binary_sha256": "ca3b6511a4484f46e71c9dac4e6c82971a1ec2f86ac49618022015173f7c4425",
-  "core_library_sha256": "47022817a9c0e47867abe36a303b2ce6f9846666414819abe0e7b83849b1f230",
+  "native_binary_sha256": "3ec11e357625e57e624ca3e8e63a8ab1dfbebc73810981f4c81cc21efc2d3a5f",
+  "core_library_sha256": "65e08a58c2d29f5a6fe475842dda77c17b76f8c1793de2b020fcb16897664f05",
   "environment": {
-    "python": "3.12.13",
+    "python": "3.14.7",
     "numpy": "2.5.3",
-    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
     "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)"
   },
   "design": {

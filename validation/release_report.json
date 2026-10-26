@@ -59171,7 +59171,7 @@
   },
   "passed": true,
   "scoring": "Balanced common frame grid; see gridalign.py and coverage diagnostics",
-  "generated_at_utc": "2026-10-14T09:13:12.886990+00:00",
+  "generated_at_utc": "2026-10-26T16:42:34.051313+00:00",
   "checks": [
     {
       "tier": "synth",
@@ -59277,7 +59277,7 @@
     "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)"
   },
   "source_sha256": {
-    "core/src/formant.rs": "fe1d500f743cb6bf0be5308b1cbbcbe5c35193705077d11290e553a0cfce05c9",
+    "core/src/formant.rs": "9623adfcd910cb52c4fa93b176be433b6cbae2f4e5f0daf119acf54449cbeef4",
     "core/src/intensity.rs": "ff0e7ab9d5992cf3947e7697eee36813ec17b259baa9c34c62c2c974e967511d",
     "core/src/lib.rs": "16560bc4cc408f424bea29f428d406439c5cbcfbde940affe3d7987d6a07685f",
     "core/src/pitch.rs": "053dc590515775077262bfcca3ec15d12bc71d4dd1501294fe0c02ac95cdbbf5",

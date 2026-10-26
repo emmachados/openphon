@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.0-rc.5
 
 Formant tracking has an opt-in Praat frame grid (`praat_grid`, CLI
 `--praat-grid`): an exact time step and frames centred in the signal, as Praat

@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-10-14T09:14:08.760861+00:00",
+  "generated_at_utc": "2026-10-26T16:44:17.967998+00:00",
   "n_grid_cells": 252,
   "n_synthetic_files": 19,
   "operating_point": {
@@ -14,7 +14,7 @@
     "crate_version": "0.1.0"
   },
   "source_sha256": {
-    "core/src/formant.rs": "fe1d500f743cb6bf0be5308b1cbbcbe5c35193705077d11290e553a0cfce05c9",
+    "core/src/formant.rs": "9623adfcd910cb52c4fa93b176be433b6cbae2f4e5f0daf119acf54449cbeef4",
     "core/src/intensity.rs": "ff0e7ab9d5992cf3947e7697eee36813ec17b259baa9c34c62c2c974e967511d",
     "core/src/lib.rs": "16560bc4cc408f424bea29f428d406439c5cbcfbde940affe3d7987d6a07685f",
     "core/src/pitch.rs": "053dc590515775077262bfcca3ec15d12bc71d4dd1501294fe0c02ac95cdbbf5",
@@ -34,7 +34,7 @@
     "validation/synthesize.py": "307efc4dd6e0f77d94978de01988a7eac266f00ec55c9b116e7d8aaed56ad739",
     "validation/formant_evidence.py": "c4277f23e1b4c8eb4d25a28c8d7ffaca3e74dc68ff19deb75d8e1d9925955c45"
   },
-  "native_binary_sha256": "473d2b24d47ba0164a314faddeaed612e8cc9af489ac217efcdadb6d554bb845",
+  "native_binary_sha256": "b6222e49ad9ea43427e9b6c416f343d9970dd7e389c3b3dd0f8412b61ca74d73",
   "grid_truth_sha256": "be2263f3aeab14fea96b01bb60011706fd72e0d9b20af786e0536ce217f63c00",
   "environment": {
     "python": "3.14.7",

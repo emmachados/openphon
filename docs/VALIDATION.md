@@ -1,10 +1,10 @@
 # Validation report
 
 openphon 0.1.0, openphon_core 0.1.0. Track and formant-grid evidence recomputed
-on 14 October 2026 against Praat 6.1.38 through praat-parselmouth 0.4.7.
+on 26 October 2026 against Praat 6.1.38 through praat-parselmouth 0.4.7.
 The formant algorithm recipe is revision 4, which preserves constant regions
 during resampling and retains revision 3 root-set verification. Voice-quality and spectral
-checks were also rerun on 14 October and reproduce the 30 September results.
+checks were also rerun on 26 October and reproduce the 30 September results.
 
 The existing raw-track synthetic and public-speech gates pass, as do the
 retained voice-quality and spectral checks. The additional analysis of the
