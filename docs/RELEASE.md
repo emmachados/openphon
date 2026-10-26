@@ -1,10 +1,24 @@
 # Release status
 
-Published version 0.1.0-rc.4, build 4. Its packaging and device test record is
-dated 2 October 2026. The source changes below have not been packaged or
-published as a new release.
+Published version 0.1.0-rc.5, build 5. Its packaging and test record is
+dated 26 October 2026.
 
-## Unreleased source verification
+## Source verification
+
+Build 5 packages formant algorithm revision 4 and the backup, export and
+settings changes listed in the [changelog](../CHANGELOG.md). It also adds an
+opt-in Praat frame grid to the formant tracker in the core library and CLI.
+The application keeps the default grid; on 696 speech recordings the default
+pitch and formant output is byte-identical to the source before the grid was
+added.
+
+On 26 October 2026, build 5 passed all 184 Flutter unit and widget tests with
+no static analysis issues. Core verification passed 102 unit tests and two
+property tests, with one existing ignored diagnostic; all nine CLI tests and
+78 Python tests passed. The regenerated release evidence reproduces every
+numerical result of 14 October; only timestamps, source and binary hashes and
+temporary paths changed. The voice-quality and spectral reports are
+byte-identical.
 
 Revision 4 corrects phase-dependent resampling roundoff in constant regions.
 All 82 native invariant checks pass, including exact constants across eight
@@ -82,10 +96,10 @@ in the application. Reports and reproduction commands retain both outcomes.
 
 ## Downloads
 
-The [Android release](https://github.com/emmachados/openphon/releases/tag/v0.1.0-rc.4)
+The [Android release](https://github.com/emmachados/openphon/releases/tag/v0.1.0-rc.5)
 contains a signed APK for direct installation, an AAB for Google Play,
 `SHA256SUMS` and `verification.json`. Android requires API 24 or later
-and targets API 36. Application source: `4d8e2a3`.
+and targets API 36. Application source: `2d43078`.
 
 An iOS development archive is available locally, but there is no App Store
 or TestFlight distribution package. Neither store submission is complete.
@@ -95,17 +109,19 @@ or TestFlight distribution package. Neither store submission is complete.
 | Check | Result |
 |---|---|
 | Flutter static analysis | No issues |
-| Flutter tests | 147 passed |
-| Rust core tests | Build 3: 82 passed; one ignored. Unchanged in build 4 |
-| CLI tests | Build 3: six passed. Unchanged in build 4 |
-| Android 16, ARM64, 16 KB pages | Build 4: ten native tests passed; signed APK starts with page-size compatibility fallback disabled |
+| Flutter tests | 184 passed |
+| Rust core tests | Build 5: 102 passed and two property tests; one ignored |
+| CLI tests | Build 5: nine passed |
+| Android 16, ARM64, 16 KB pages | Build 5: 15 native tests passed; signed APK starts with page-size compatibility fallback disabled |
 | Android 16, ARM64, 4 KB pages | Build 1: nine native tests passed |
-| iPhone 17 Pro simulator, iOS 26.5 | Build 4: ten native tests passed (one file failed on the first run and passed on three reruns) |
+| iPhone 17 Pro simulator, iOS 26.5 | Build 5: 15 native tests passed on the first run |
 | Android production packages | APK and AAB build and signature checks passed |
-| iOS production build | Build 4: unsigned release compilation passed on the second attempt. Build 2: development-signed archive passed. Distribution signing unavailable |
+| iOS production build | Build 5: unsigned release compilation passed on the first attempt. Build 2: development-signed archive passed. Distribution signing unavailable |
 
-Build 4 adds a citation request to the About screen and changes nothing
-in the analysis or the Rust code since build 3. Build 3 added manual pitch
+Build 5 changes formant analysis (revision 4) and leaves the pitch,
+intensity, voice-quality and spectral code of build 4 unchanged. Build 4
+added a citation request to the About screen and changed nothing in the
+analysis or the Rust code since build 3. Build 3 added manual pitch
 correction, applied the corrections in the voice report and changed the
 pitch tracker's voicing decision (see the [changelog](../CHANGELOG.md)).
 The tenth native test checks that a corrected track reaches the voice
@@ -117,7 +133,8 @@ Their output was not kept, so the cause is unknown; the test passed on
 three further runs and the compilation succeeded when repeated.
 
 Native tests cover the Rust bridge, analysis, malformed input, TextGrid
-replacement, pitch correction, playback and storage preparation.
+replacement, pitch correction, playback, storage preparation, backup restore
+and measurement export.
 Integration tests run in debug mode. The signed Android release received a
 separate startup check on the 16 KB emulator with
 `bionic.linker.16kb.app_compat.enabled` set to false: the package reported
@@ -157,7 +174,7 @@ native suite, which requires USB with the documented Flutter test command.
 
 ## Outstanding checks
 
-Builds 3 and 4 have not run on a physical Android or iOS device, on a 4 KB-page
+Builds 3 to 5 have not run on a physical Android or iOS device, on a 4 KB-page
 Android emulator or as an iOS development archive. Physical Android recording, microphone permission recovery, interruptions,
 document-provider import and paired sharing remain untested. Separate
 background/foreground recording transitions and physical backup/restore
@@ -212,18 +229,16 @@ Signing credentials and provisioning profiles belong outside the repository.
 
 ## CI and benchmark files
 
-[Application CI](https://github.com/emmachados/openphon/actions/runs/36982815768)
-at `382d053` (build 3) passed static analysis, Flutter tests, Android
-production packaging and the iOS simulator suite, after one retry of a
-stalled test launch. The build 4 commits had not been pushed when this
-record was written, so CI has not run on `4d8e2a3`. CI packages are
-unsigned build outputs; the GitHub release contains the separately signed
-Android packages.
+[Application CI](https://github.com/emmachados/openphon/actions/runs/40352857416)
+at `13fc543` passed static analysis, Flutter tests, Android production
+packaging and the iOS simulator suite. Build 5 (`2d43078`) differs from
+`13fc543` only in version numbers, documentation and regenerated evidence.
+CI packages are unsigned build outputs; the GitHub release contains the
+separately signed Android packages.
 
-[Validation CI](https://github.com/emmachados/openphon/actions/runs/36534135577)
-at `995bd1f` passed core and CLI tests, synthetic, voice-quality and spectral
-checks, 13 data-integrity tests, and public-speech scoring. The core and
-validation code are unchanged in build 2. Public voicing agreement for
+[Validation CI](https://github.com/emmachados/openphon/actions/runs/40352857536)
+at `13fc543` passed core and CLI tests, synthetic, voice-quality and spectral
+checks, the release-evidence integrity tests and public-speech scoring. Public voicing agreement for
 build 2 was 89.48492% on Linux and 89.48285% in the recorded macOS run;
 the build 3 tracker measures 95.07410% on macOS. The voice report change
 in build 3 leaves the voice-quality parity figures unchanged.

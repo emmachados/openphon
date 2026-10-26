@@ -15,8 +15,6 @@ package is not yet available; iOS builds require Xcode and local signing.
 
 See the [release notes](CHANGELOG.md) for changes and the
 [release status](docs/RELEASE.md) for test coverage and outstanding checks.
-The `main` branch includes measurement, backup and numerical corrections
-that are not yet included in the published `0.1.0-rc.4` packages.
 
 ## Using openphon
 

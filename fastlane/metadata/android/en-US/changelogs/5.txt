@@ -1,0 +1,5 @@
+Formant analysis uses algorithm revision 4: offsets are removed before
+resampling, unverified LPC root sets give missing values, and silent gaps no
+longer produce formants. Formant values can differ from the previous version.
+Backups are checked before they are written, and measurement exports wait
+for finished analyses and record their parameters.
