@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+Formant tracking has an opt-in Praat frame grid (`praat_grid`, CLI
+`--praat-grid`): an exact time step and frames centred in the signal, as Praat
+places them. The default grid is unchanged.
+
 Measurement exports wait for completed analyses and retain computation errors
 with a retry action. Outdated analysis requests cannot replace tracks computed
 with newer settings. Missing measurements are empty CSV cells; interval exports

@@ -28,7 +28,9 @@ Commands:
   formants <file.wav>                  CSV time_s,f1_hz..fN_hz (0 = missing)
       [--step S] [--max N] [--ceiling HZ] [--window S]
       [--pre-emphasis HZ] [--raw]      --raw: report every pole in band
-                                       (bandwidth filter off, Praat burg-like)
+      [--praat-grid]                   (bandwidth filter off, Praat burg-like)
+                                       --praat-grid: frames on Praat's
+                                       centred grid, exact time step
   spectrogram <file.wav>               CSV matrix: time_s, then one column
       [--window S] [--step S]          per frequency bin (header in Hz)
       [--max-freq HZ] [--pre-emphasis HZ]
@@ -295,7 +297,7 @@ fn formants_cmd(args: &[String]) -> Result<(), String> {
     let opts = parse_opts(
         args,
         &["out", "step", "max", "ceiling", "window", "pre-emphasis"],
-        &["raw"],
+        &["raw", "praat-grid"],
     )?;
     let d = formant::FormantParams::default();
     let params = formant::FormantParams {
@@ -304,6 +306,7 @@ fn formants_cmd(args: &[String]) -> Result<(), String> {
         ceiling_hz: opts.f64("ceiling", d.ceiling_hz)?,
         window_s: opts.f64("window", d.window_s)?,
         pre_emphasis_hz: opts.f64("pre-emphasis", d.pre_emphasis_hz)?,
+        praat_grid: opts.has("praat-grid"),
         max_bandwidth_hz: if opts.has("raw") {
             f64::INFINITY
         } else {

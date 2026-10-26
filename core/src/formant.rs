@@ -24,6 +24,11 @@ pub struct FormantParams {
     /// are sorted and compacted; rejection can change their numbered slots.
     /// A narrow bandwidth alone does not establish resonance identity.
     pub max_bandwidth_hz: f64,
+    /// Place frames as Praat does: exact time step, grid centred in the
+    /// signal, each frame taken around its centre time. Off by default: the
+    /// default grid starts at the first sample, with the hop rounded to whole
+    /// samples of the resampled signal.
+    pub praat_grid: bool,
 }
 
 impl Default for FormantParams {
@@ -35,6 +40,7 @@ impl Default for FormantParams {
             window_s: 0.025,
             pre_emphasis_hz: 50.0,
             max_bandwidth_hz: 400.0,
+            praat_grid: false,
         }
     }
 }
@@ -508,6 +514,50 @@ fn formant_from_root(root: Complex64, sample_rate: f64) -> (f64, f64) {
     (frequency, bandwidth)
 }
 
+/// Start, length and centre time of each frame on the resampled signal.
+fn frame_spans(
+    n_in: usize,
+    sr_in: u32,
+    n_work: usize,
+    sr_work: f64,
+    win_n: usize,
+    hop: usize,
+    min_len: usize,
+    params: &FormantParams,
+) -> Vec<(usize, usize, f64)> {
+    if !params.praat_grid {
+        let mut spans = Vec::new();
+        let mut start = 0usize;
+        while start + win_n <= n_work {
+            spans.push((start, win_n, (start + win_n / 2) as f64 / sr_work));
+            start += hop;
+        }
+        return spans;
+    }
+    // Praat's Sampled_shortTermAnalysis on the resampled sound: frames counted
+    // over its duration, grid centred on the original signal. The resampler
+    // aligns output sample 0 with input sample 0.
+    let dx = 1.0 / sr_work;
+    let original = n_in as f64 / sr_in as f64;
+    let x1 = 0.5 / sr_in as f64;
+    let duration = (original * sr_work).round() * dx;
+    let physical = 2.0 * params.window_s;
+    if duration < physical {
+        return Vec::new();
+    }
+    let n_frames = ((duration - physical) / params.time_step_s).floor() as usize + 1;
+    let first = 0.5 * original - 0.5 * (n_frames as f64 * params.time_step_s) + 0.5 * params.time_step_s;
+    (0..n_frames)
+        .filter_map(|i| {
+            let t = first + i as f64 * params.time_step_s;
+            let left = ((t - x1) / dx).floor() as isize;
+            let start = (left + 1 - (win_n / 2) as isize).max(0);
+            let end = (left + 1 + (win_n / 2) as isize).min(n_work as isize);
+            (end - start > min_len as isize).then(|| (start as usize, (end - start) as usize, t))
+        })
+        .collect()
+}
+
 pub fn track_formants(samples: &[f64], sample_rate: u32, params: &FormantParams) -> FormantTrack {
     let sr_work = 2.0 * params.ceiling_hz;
     // Remove overall constant level before resampling. Anchored subtraction
@@ -531,14 +581,14 @@ pub fn track_formants(samples: &[f64], sample_rate: u32, params: &FormantParams)
     let order = 2 * params.max_formants;
     let window = gaussian_window(win_n);
 
+    let spans = frame_spans(samples.len(), sample_rate, source.len(), sr_work, win_n, hop, order, params);
     let mut frames = Vec::new();
-    let mut start = 0usize;
-    while start + win_n <= source.len() {
+    for (start, len, time_s) in spans {
         // Center before windowing: windowing a constant creates a nonconstant
         // signal. Subtract an anchor first so constant frames become exactly
         // zero even when summing their original level would accumulate error.
         let anchor = source[start];
-        let mut frame: Vec<f64> = source[start..start + win_n]
+        let mut frame: Vec<f64> = source[start..start + len]
             .iter()
             .map(|s| s - anchor)
             .collect();
@@ -547,7 +597,6 @@ pub fn track_formants(samples: &[f64], sample_rate: u32, params: &FormantParams)
             *v = (*v - mean) * w;
         }
 
-        let time_s = (start + win_n / 2) as f64 / sr_work;
         let energy: f64 = frame.iter().map(|v| v * v).sum();
         if energy <= 0.0 {
             frames.push(FormantFrame {
@@ -555,7 +604,6 @@ pub fn track_formants(samples: &[f64], sample_rate: u32, params: &FormantParams)
                 formants_hz: Vec::new(),
                 bandwidths_hz: Vec::new(),
             });
-            start += hop;
             continue;
         }
 
@@ -577,7 +625,6 @@ pub fn track_formants(samples: &[f64], sample_rate: u32, params: &FormantParams)
             formants_hz: cands.iter().map(|c| c.0).collect(),
             bandwidths_hz: cands.iter().map(|c| c.1).collect(),
         });
-        start += hop;
     }
     FormantTrack { frames }
 }
@@ -1124,5 +1171,43 @@ mod tests {
         let (frequency, bandwidth) = formant_from_root(Complex64::new(0.0, 1.0), 11000.0);
         assert!((frequency - 2750.0).abs() < 1e-9);
         assert_eq!(bandwidth, 0.0);
+    }
+
+    #[test]
+    fn praat_grid_matches_praat_frame_placement() {
+        // Frame count and first time from Praat 6.1.38 (Parselmouth 0.4.7),
+        // To Formant (burg) with a 6.25 ms step, 25 ms window, 5500 Hz ceiling.
+        let params = FormantParams {
+            time_step_s: 0.00625,
+            praat_grid: true,
+            ..Default::default()
+        };
+        for (n, sr, frames, first) in [
+            (192000, 48000, 632, 0.028125),
+            (22050, 44100, 72, 0.028125),
+            (59259, 48000, 190, 0.02665625),
+            (48000, 16000, 473, 0.025),
+        ] {
+            let signal: Vec<f64> = (0..n).map(|i| ((i * 7919) % 1013) as f64 / 1013.0 - 0.5).collect();
+            let track = track_formants(&signal, sr, &params);
+            assert_eq!(track.frames.len(), frames, "{n} samples at {sr} Hz");
+            for (i, frame) in track.frames.iter().enumerate() {
+                assert!((frame.time_s - (first + i as f64 * 0.00625)).abs() < 1e-9);
+            }
+        }
+    }
+
+    #[test]
+    fn default_grid_is_unchanged() {
+        // Hop rounded to 69 samples at 11 kHz; first centre half a 50 ms window in.
+        let params = FormantParams {
+            time_step_s: 0.00625,
+            ..Default::default()
+        };
+        let signal: Vec<f64> = (0..192000).map(|i| ((i * 7919) % 1013) as f64 / 1013.0 - 0.5).collect();
+        let track = track_formants(&signal, 48000, &params);
+        assert_eq!(track.frames.len(), 630);
+        assert!((track.frames[0].time_s - 0.025).abs() < 1e-12);
+        assert!((track.frames[1].time_s - track.frames[0].time_s - 69.0 / 11000.0).abs() < 1e-12);
     }
 }
